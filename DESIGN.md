@@ -1,7 +1,7 @@
 # Ruera — Documento di design
 
 > Stato: bozza consolidata delle decisioni di design. Nessun codice ancora scritto.
-> Ultimo aggiornamento: 2026-07-16
+> Ultimo aggiornamento: 2026-07-17
 
 ## 1. Visione
 
@@ -66,6 +66,48 @@ Il giro del camion non è stato simulato nel tempo: è un **piano di fattibilit�
 - Turni indicativi: raccolta esterna 2–10, cernita in azienda 10–18, vendita 8–20, R&D. I macchinari a ciclo continuo (inceneritore, tritarifiuti, compattatori) lavorano fuori turno.
 
 La grafica è la **messa in scena** del piano calcolato, non la simulazione.
+
+### Risoluzione al tick e cadenze economiche *(deciso 2026-07-17 — RUE-6)*
+
+**Decisione: ogni effetto si materializza al confine del tick. Nella simulazione non esistono checkpoint sub-tick; l'aggregazione (Arcade, §6) avviene sopra i risultati per-tick, mai al posto loro.**
+
+Il dubbio (§15.8) era se alcuni effetti dovessero materializzarsi ai checkpoint sulla mappa (es. al rientro del mezzo in azienda), aggregando più tick. Risposta: no, per costruzione —
+
+- **Nel motore non esiste tempo sub-tick.** La giornata è un piano di fattibilità calcolato dentro il tick (sopra): «il camion è rientrato» non è un evento da aspettare, è un fatto già contenuto nel piano che il tick stesso ha calcolato — i suoi effetti si scrivono alla chiusura di quel tick. Un checkpoint introdurrebbe una seconda nozione di tempo, con un ordinamento di eventi sub-tick da rendere a sua volta deterministico: complessità pura, zero profondità decisionale.
+- **Replay e comandi restano banali.** I comandi del giocatore si applicano all'apertura del tick, il log dei comandi è indicizzato per tick, l'hash di stato avanza una volta per tick: la bisezione di una divergenza è per-tick (strategia di test sopra).
+- **Il realismo lo danno le cadenze, non i checkpoint**: anche nella realtà i flussi di cassa seguono il calendario (la paga del sabato, il canone mensile), non il rientro fisico del mezzo. Il calendario sopra i tick esiste già (RUE-11).
+
+I «checkpoint» sopravvivono in due forme, nessuna delle due nella sim:
+
+- **Messa in scena** (grafica): nella riproduzione del tick la UI può inscenare l'effetto nel momento verosimile — l'inventario cresce a schermo quando il camion arriva in azienda — ma il libro mastro è cambiato una volta sola, a chiusura tick.
+- **Effetti a tick futuro**: i processi multi-giorno (consegne, training, scadenze normative) sono effetti programmati su tick futuri — *il checkpoint è un tick*, non un luogo sulla mappa. È il pattern già in uso per i «Ritardi realistici» (sotto).
+
+**Ordine fisso dei sistemi dentro il tick** (vincolante per RUE-16 e RUE-14):
+
+1. applicazione dei comandi accodati per il tick;
+2. calendario ed eventi (festività, scioperi, scadenze normative);
+3. produzione rifiuti;
+4. piano del giorno: solve ed esecuzione (raccolta, accumulo, violazioni);
+5. lavorazione in azienda (cernita, macchinari a ciclo continuo);
+6. vendite;
+7. contabilità di chiusura (cadenze sotto) e hash di stato.
+
+**Cadenze economiche** (sul calendario: settimana lavorativa di 6 giorni, domenica riposo):
+
+| Flusso | Cadenza | Momento |
+|---|---|---|
+| Salari | settimanale | a chiusura del sabato; maturano per giorno lavorato |
+| Appalti condominiali | mensile | primo tick del mese, canone del mese precedente |
+| Vendita materiali | immediata | al tick della vendita |
+| Manutenzione ordinaria | giornaliera | rata per tick per mezzo/macchinario posseduto |
+| Riparazioni straordinarie | immediata | al tick del guasto |
+| Multe | immediata | al tick dell'accertamento (ispezione o scadenza norma) |
+| Acquisti | esborso subito | pagamento al tick dell'ordine; consegna a tick futuro programmato |
+| Assunzioni | settimanale | in paga dal primo sabato; produttivi dopo ~10 tick di training |
+
+Le cadenze sono **dati di scenario**, non costanti nel codice (§15.9): nel corso del '900 la paga passa da settimanale a quattordicinale/mensile — è progressione storica, non refactoring.
+
+**Conseguenza per save/pausa/replay** (RUE-8, RUE-18): lo stato della sim esiste solo ai confini di tick; la pausa è un fatto di rendering; il salvataggio cattura l'ultimo tick concluso (più, al massimo, la posizione di riproduzione grafica).
 
 ### Ritardi realistici
 
@@ -166,6 +208,8 @@ Timeline di riferimento (basata su Milano; le altre città usano più o meno gli
 ---
 
 ## 8. Economia
+
+*Cadenze di pagamento (salari, appalti, manutenzione, multe) e momento di materializzazione: decise in §2 «Risoluzione al tick e cadenze economiche» (RUE-6).*
 
 ### Ricavi
 - **Appalti condominiali** (fonte principale nei primi periodi).
@@ -273,7 +317,7 @@ Manutenzione del verde, pulizia muri/strade, ritiro ingombranti (privati e pubbl
 5. ~~Determinismo tecnico~~ — **deciso** (RUE-7, 2026-07-17): unità intere a 64 bit, niente virgola mobile nella simulazione; vedi §2 «Determinismo: strategia».
 6. **Dettaglio scheduler** di riempimento zone e regole di priorità.
 7. Recupero del dettaglio perso sul "2020+: si possono sostituire…".
-8. **Risoluzione degli effetti**: tutto al tick, oppure aggregare i tick e materializzare gli effetti ai checkpoint sulla mappa (es. al rientro in azienda)? Argomento pro-tick: anche nella realtà i flussi hanno cadenze fisse (contratto firmato, paga settimanale/quattordicinale/mensile, spese distribuite nel mese).
+8. ~~Risoluzione degli effetti~~ — **deciso** (RUE-6, 2026-07-17): tutto si materializza al confine del tick, niente checkpoint sub-tick; i processi multi-giorno sono effetti programmati su tick futuri, la messa in scena resta alla grafica. Cadenze economiche e ordine dei sistemi nel tick in §2 «Risoluzione al tick e cadenze economiche».
 9. **Calendario e scenario come dati, non come codice** *(annotato 2026-07-17)*: l'implementazione RUE-11 introduce il calendario come factory method fisso (`SimCalendar.Milano1880()`) — scorciatoia accettabile finché esiste un solo scenario, ma è debito tecnico dichiarato. I calendari cambiano nel tempo (festività, cadenze lavorative) e la timeline storica prevede eventi che alterano le regole del gioco (WWI, WWII, autarchia anni '30 — già annotati in §7 come "da arricchire"). Il calendario/scenario andrà **data-driven** con lo stesso principio già deciso per veicoli/rifiuti/produttori (§2 «Requisiti trasversali», RUE-12): una timeline di eventi configurabile per scenario, non logica sparsa nel codice. Da risolvere insieme allo script di crescita della città (item 1) e alla pipeline mappe (RUE-9), quando arriva il secondo scenario o il primo evento storico vero — non bloccante ora con un solo scenario attivo.
 
 ---
