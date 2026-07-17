@@ -1,0 +1,49 @@
+{
+  "formatVersion": 1,
+  "id": "toy",
+  "name": "Toy 4x3 grid for engine development",
+  "nodes": [
+    { "id": 1, "x": 0, "y": 0 },
+    { "id": 2, "x": 300, "y": 0 },
+    { "id": 3, "x": 600, "y": 0 },
+    { "id": 4, "x": 900, "y": 0 },
+    { "id": 5, "x": 0, "y": 300 },
+    { "id": 6, "x": 300, "y": 300 },
+    { "id": 7, "x": 600, "y": 300 },
+    { "id": 8, "x": 900, "y": 300 },
+    { "id": 9, "x": 0, "y": 600 },
+    { "id": 10, "x": 300, "y": 600 },
+    { "id": 11, "x": 600, "y": 600 },
+    { "id": 12, "x": 900, "y": 600 }
+  ],
+  "edges": [
+    { "id": 1, "from": 1, "to": 2, "lengthMeters": 300 },
+    { "id": 2, "from": 2, "to": 3, "lengthMeters": 300 },
+    { "id": 3, "from": 3, "to": 4, "lengthMeters": 330 },
+    { "id": 4, "from": 5, "to": 6, "lengthMeters": 300 },
+    { "id": 5, "from": 6, "to": 7, "lengthMeters": 300 },
+    { "id": 6, "from": 7, "to": 8, "lengthMeters": 300 },
+    { "id": 7, "from": 9, "to": 10, "lengthMeters": 380 },
+    { "id": 8, "from": 10, "to": 11, "lengthMeters": 300 },
+    { "id": 9, "from": 11, "to": 12, "lengthMeters": 300 },
+    { "id": 10, "from": 1, "to": 5, "lengthMeters": 300 },
+    { "id": 11, "from": 5, "to": 9, "lengthMeters": 300 },
+    { "id": 12, "from": 2, "to": 6, "lengthMeters": 300 },
+    { "id": 13, "from": 6, "to": 10, "lengthMeters": 300 },
+    { "id": 14, "from": 3, "to": 7, "lengthMeters": 300 },
+    { "id": 15, "from": 7, "to": 11, "lengthMeters": 320 },
+    { "id": 16, "from": 4, "to": 8, "lengthMeters": 300 },
+    { "id": 17, "from": 8, "to": 12, "lengthMeters": 300 }
+  ],
+  "depots": [
+    { "id": 1, "node": 1 }
+  ],
+  "producers": [
+    { "id": 1, "edge": 2, "archetype": "condo-small" },
+    { "id": 2, "edge": 5, "archetype": "condo-large" },
+    { "id": 3, "edge": 6, "archetype": "shop" },
+    { "id": 4, "edge": 8, "archetype": "condo-small" },
+    { "id": 5, "edge": 16, "archetype": "factory" },
+    { "id": 6, "edge": 11, "archetype": "shop" }
+  ]
+}
