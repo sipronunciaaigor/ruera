@@ -316,6 +316,26 @@ Vasta area alla Simutrans con entità urbane di ogni tipo e territori variegati.
 ### La città cresce
 La città evolve nei 170 anni (popolazione, quartieri, eventi storici). **Sistema da progettare** (direzione: scenario = mappa + script di crescita; il generatore dovrà produrre traiettorie, non solo mappe). Discussione rimandata.
 
+### Pipeline delle mappe e formato file *(deciso 2026-07-17 — RUE-9)*
+
+**Decisione: il formato file è il contratto; ogni sorgente vi compila.** Authoring a mano, importer, generatore: tutti producono lo stesso `*.map.json`, e il motore (RUE-13) carica solo quello.
+
+**Formato** (JSON, `formatVersion`, unità intere, parsing `InvariantCulture` — §2):
+
+- `nodes`: id densi, coordinate **intere in metri** su griglia locale — *solo presentazione* (staging §5, UI di pittura §4);
+- `edges`: id, `from`/`to`, **`lengthMeters` autoritativo per i costi di viaggio** — la geometria non entra mai nei costi («viaggi parametrici, niente fisica», §2). Non orientati in V1 (carri e gerle: niente sensi unici; estendibile con un flag);
+- `depots`: riferimento a nodo (andata/ritorno dal deposito come costo fisso emergente, §4);
+- `producers`: riferimento ad arco + `archetype` (id risolto sui dati di RUE-12).
+- Il loader valida: id univoci, riferimenti esistenti, grafo connesso, lunghezze positive.
+
+**Pipeline per la slice Milano 1880–1930: mappa d'autore dalle fonti storiche** (riferimenti in coda al documento), aggregata alle vie principali — il livello produttore-aggregato (§3) non richiede fedeltà al singolo isolato. Si costruisce **dopo** che il motore gira sulla toy map.
+
+**OSM scartato per la slice**: la rete attuale non è la Milano del 1880 (cerchia dei navigli scoperta, corpi santi), e la curatela storica supererebbe il costo dell'authoring a scala aggregata. Il formato resta neutrale: un importer OSM→formato può arrivare per il gioco libero, e il **generatore** («le città storiche sono seed curati», sopra) emetterà lo stesso formato.
+
+**Toy map committata**: `data/maps/toy.map.json` — griglia 4×3 (12 nodi, 17 archi con lunghezze leggermente irregolari), 1 deposito d'angolo, 6 produttori su 4 archetipi placeholder (`condo-small`, `condo-large`, `shop`, `factory` — definiti per davvero con RUE-12). Fixture per RUE-13/16: basta per giri nearest-neighbor, costi di andata/ritorno dal deposito e accumulo dei non serviti.
+
+La mappa è **dato di scenario**: entra nell'hash dei dati di scenario nell'header dei salvataggi (§2 «Save e replay: formato»).
+
 ---
 
 ## 12. Vittoria, sconfitta, ritmo
