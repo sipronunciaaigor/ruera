@@ -11,4 +11,9 @@
     <AdditionalFiles Include="BannedSymbols.txt" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Tests reach internals (per-system RNG streams, command internals); the public API mutates state only via commands (RUE-15). -->
+    <InternalsVisibleTo Include="Ruera.Sim.Tests" />
+  </ItemGroup>
+
 </Project>

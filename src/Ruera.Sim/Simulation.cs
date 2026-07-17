@@ -1,4 +1,5 @@
 using Ruera.Sim.Calendar;
+using Ruera.Sim.Commands;
 using Ruera.Sim.Hashing;
 
 namespace Ruera.Sim;
@@ -10,6 +11,9 @@ namespace Ruera.Sim;
 /// </summary>
 public sealed class Simulation
 {
+    private readonly List<CommandLogEntry> _pending = [];
+    private readonly List<CommandLogEntry> _log = [];
+
     public SimState State { get; }
 
     public SimCalendar Calendar { get; }
@@ -35,6 +39,44 @@ public sealed class Simulation
 
     public bool IsWorkingDay => Calendar.IsWorkingDay(State.Tick);
 
+    /// <summary>
+    /// Every command ever scheduled, in submission order: the replay input.
+    /// Game = initial state (seed) + this log (DESIGN.md §2).
+    /// </summary>
+    public IReadOnlyList<CommandLogEntry> CommandLog => _log;
+
+    /// <summary>Submits a command for the opening of the current day (the tick that resolves <see cref="Today"/>).</summary>
+    public void Submit(SimCommand command) => Schedule(State.Tick, command);
+
+    /// <summary>
+    /// Schedules a command for the opening of a not-yet-resolved day. Throws if
+    /// the day is already resolved or the command fails validation against the
+    /// current state; it is re-validated authoritatively at application.
+    /// </summary>
+    public void Schedule(long day, SimCommand command)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+        var validation = command.Validate(State);
+        if (!validation.IsValid)
+            throw new ArgumentException($"Invalid command: {validation.Reason}", nameof(command));
+        ScheduleCore(day, command);
+    }
+
+    /// <summary>
+    /// Reconstructs a run from its inputs: fresh state from the seed, the full
+    /// command log scheduled, then advanced. Skips submission-time validation —
+    /// recorded commands were validated against states a fresh sim does not
+    /// have yet; application-time validation remains the deterministic authority.
+    /// </summary>
+    public static Simulation Replay(ulong seed, IEnumerable<CommandLogEntry> log, int ticks)
+    {
+        var sim = new Simulation(seed);
+        foreach (var entry in log)
+            sim.ScheduleCore(entry.Day, entry.Command);
+        sim.Advance(ticks);
+        return sim;
+    }
+
     public void Advance(int ticks)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(ticks);
@@ -42,12 +84,46 @@ public sealed class Simulation
             AdvanceOneTick();
     }
 
+    private void ScheduleCore(long day, SimCommand command)
+    {
+        if (day < State.Tick)
+            throw new ArgumentOutOfRangeException(nameof(day), day, "Cannot schedule a command for an already-resolved day.");
+        var entry = new CommandLogEntry(day, command);
+        _pending.Add(entry);
+        _log.Add(entry);
+    }
+
     private void AdvanceOneTick()
     {
-        // Systems will run here in fixed declaration order as they land
-        // (waste production, collection, economy, ...). Single-threaded inside
-        // the tick by rule (DESIGN.md §2, rule 6).
-        State.Tick++;
+        // Fixed in-tick order (DESIGN.md §2 «Risoluzione al tick»): commands at
+        // tick open, then systems in fixed declaration order as they land
+        // (calendar/events, waste production, day plan, processing, sales,
+        // closing accounting). Single-threaded inside the tick by rule.
+        ApplyDueCommands();
+        State.Tick++; // tick close: effects are materialized, the day is resolved
+    }
+
+    private void ApplyDueCommands()
+    {
+        var day = State.Tick;
+        var index = 0;
+        while (index < _pending.Count)
+        {
+            var entry = _pending[index];
+            if (entry.Day == day)
+            {
+                // Re-validate against the state the command actually meets; a
+                // command that turned invalid is skipped deterministically (the
+                // log still records the attempt, so replays skip it identically).
+                if (entry.Command.Validate(State).IsValid)
+                    entry.Command.Apply(State);
+                _pending.RemoveAt(index);
+            }
+            else
+            {
+                index++;
+            }
+        }
     }
 
     /// <summary>
