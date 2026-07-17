@@ -32,8 +32,12 @@ public sealed class SimState
         }
     }
 
-    /// <summary>Per-system RNG stream: draws in one system never shift another system's sequence.</summary>
-    public IDeterministicRng Rng(RngStreamId id)
+    /// <summary>
+    /// Per-system RNG stream: draws in one system never shift another system's
+    /// sequence. Internal on purpose: outside the assembly, state may only be
+    /// mutated through command application at tick boundaries (RUE-15).
+    /// </summary>
+    internal IDeterministicRng Rng(RngStreamId id)
     {
         var index = Array.IndexOf(StreamIds, id);
         return index >= 0
