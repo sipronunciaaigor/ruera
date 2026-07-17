@@ -5,4 +5,10 @@
     <TargetFrameworks>net9.0;net10.0</TargetFrameworks>
   </PropertyGroup>
 
+  <ItemGroup>
+    <!-- Determinism enforcement (DESIGN.md §2): bans System.Random, wall-clock APIs, parallelism, GetHashCode. -->
+    <PackageReference Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" Version="3.3.4" PrivateAssets="all" />
+    <AdditionalFiles Include="BannedSymbols.txt" />
+  </ItemGroup>
+
 </Project>
