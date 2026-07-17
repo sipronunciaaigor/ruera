@@ -1,0 +1,41 @@
+{
+  "formatVersion": 1,
+  "archetypes": [
+    {
+      "id": "condo-small",
+      "name": "Condominio piccolo",
+      "bufferGrams": 120000,
+      "maxSanitaryIntervalTicks": 7,
+      "production": [
+        { "waste": "mixed", "gramsPerTick": 12000 }
+      ]
+    },
+    {
+      "id": "condo-large",
+      "name": "Condominio grande (52 famiglie)",
+      "bufferGrams": 300000,
+      "maxSanitaryIntervalTicks": 2,
+      "production": [
+        { "waste": "mixed", "gramsPerTick": 80000 }
+      ]
+    },
+    {
+      "id": "shop",
+      "name": "Bottega",
+      "bufferGrams": 60000,
+      "maxSanitaryIntervalTicks": 7,
+      "production": [
+        { "waste": "mixed", "gramsPerTick": 5000 }
+      ]
+    },
+    {
+      "id": "factory",
+      "name": "Opificio",
+      "bufferGrams": 1200000,
+      "maxSanitaryIntervalTicks": 3,
+      "production": [
+        { "waste": "mixed", "gramsPerTick": 150000 }
+      ]
+    }
+  ]
+}
