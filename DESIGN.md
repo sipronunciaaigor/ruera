@@ -121,6 +121,45 @@ Le cadenze sono **dati di scenario**, non costanti nel codice (§15.9): nel cors
 - **Dati, non codice**: tipi di veicolo (nomi, capacità, tempi di riempimento/svuotamento, costi, epoche di disponibilità), tipologie di rifiuto e archetipi di produttore sono definiti in file di configurazione esterni — aggiungere un tipo non richiede ricompilare.
 - **Ispezionabilità**: ogni entità (in primis i veicoli) è cliccabile e mostra il proprio stato corrente: carico vs capacità, rotta assegnata, budget consumato/residuo, avanzamento del piano del giorno.
 
+### Save e replay: formato *(deciso 2026-07-17 — RUE-8)*
+
+**Decisione: ibrido con gerarchia netta — il log dei comandi è la verità, gli snapshot sono cache di accelerazione.** Un salvataggio resta valido anche senza snapshot; gli snapshot si possono scartare e ricostruire in ogni momento.
+
+- **Verità**: seed + identità scenario + log comandi (partita = stato iniziale + input). Il log usa la codifica binaria little-endian versionata introdotta con RUE-15.
+- **Snapshot**: serializzazione canonica dello stato a fine tick — uno ogni 365 tick (un anno di gioco) più uno al momento del salvataggio. Caricare = snapshot più vicino + ri-simulazione della coda di tick. Gli snapshot servono anche allo scrubbing dei replay e da auto-verifica: ognuno registra l'hash di stato e la ri-simulazione deve atterrarci sopra — il non-determinismo emerge da solo sul campo.
+- **Regola del writer unico**: hash di stato e snapshot condividono la stessa serializzazione canonica (un solo writer alimenta sia FNV-1a sia i byte dello snapshot) — mai due ordinamenti di campi da tenere allineati a mano. Oggi `SimState.AddToHash` alimenta solo l'hash: il writer si estrae con RUE-18, senza duplicare l'ordine dei campi.
+
+**Contenitore** (binario, un solo file; checksum FNV-1a per sezione, deflate opzionale per sezione):
+
+| Sezione | Contenuto |
+|---|---|
+| Header | magic `RUERA`, versione contenitore, `SimVersion`, `StateSchemaVersion`, id scenario + hash dei dati di scenario, seed, tick salvato, hash di stato |
+| Log comandi | codifica RUE-15 (con la propria versione wire) |
+| Indice snapshot | (tick, offset, hash) per ogni snapshot |
+| Snapshot × N | stato canonico a fine tick |
+
+Replay e ghost usano lo stesso contenitore (snapshot facoltativi, utili per lo scrubbing).
+
+**Versioning**:
+
+- `SimVersion` (intero monotono): si incrementa a **ogni modifica che cambia la traiettoria dell'hash** a parità di seed+comandi — cioè ogni volta che si aggiornano consapevolmente i golden hash. È l'etichetta di determinismo del motore.
+- **Replay e ghost richiedono `SimVersion` identico** (§10: le patch rompono i replay — è previsto, i ghost sono etichettati).
+- Salvataggi attraverso le patch: stesso `SimVersion` → tutto funziona (snapshot + coda). `SimVersion` diverso ma `StateSchemaVersion` uguale → si continua dall'ultimo snapshot; il replay pregresso resta visualizzabile solo sulla versione vecchia. `StateSchemaVersion` diverso → salvataggio non caricabile (accettato pre-1.0: niente migrazioni in V1).
+- L'header registra anche l'**hash dei dati di scenario** (RUE-12/RUE-20): dati diversi = partita diversa, stessa logica del codice.
+
+**Stima di ingombro** (partita di 50 anni ≈ 18 250 tick), assunzioni esplicite:
+
+| Voce | Assunzione | Raw | Compresso (~×3) |
+|---|---|---|---|
+| Comandi semplici | ~5/tick × 16 B | ~1,5 MB | ~0,5 MB |
+| Comandi di pittura | ~2/settimana × ~400 B | ~2 MB | ~0,7 MB |
+| Snapshot annuali | 50 × 0,3–3 MB (cresce col gioco) | 15–150 MB | 5–30 MB |
+| **Totale** | | | **≈ 6–31 MB** (tipico < 5 MB a metà partita) |
+
+Numeri banali per il disco. Se gli snapshot pesassero, si dirada la ritenzione (annuali recenti + decennali) senza toccare il formato.
+
+**Implicazioni**: RUE-18 implementa il contenitore e estrae il writer canonico unico; `Simulation.Replay` dovrà accettare l'identità di scenario oltre al seed (oggi assume il calendario di default — rilevante anche per RUE-20).
+
 ---
 
 ## 3. Produttori e rifiuti
