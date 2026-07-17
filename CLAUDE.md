@@ -31,5 +31,5 @@ Le sessioni di sola lettura/discussione senza esiti non richiedono voci.
 - **Lingue**: codice, commit, branch e issue in inglese; documenti in italiano; la conversazione con fabri è mista IT/EN.
 - **Branch** legati agli ID Linear (es. `rue-12-tick-engine`); commit e PR referenziano le issue.
 - **Architettura**: la simulazione è una class library .NET pura (nessuna dipendenza da Godot), multi-target `net9.0;net10.0`; Godot 4 (C#) fa solo da renderer/UI.
-- **Determinismo obbligatorio** nella simulazione: niente casualità non seedata, niente dipendenze dal frame rate o dall'ordine di iterazione non definito.
+- **Determinismo obbligatorio** nella simulazione: niente casualità non seedata, niente dipendenze dal frame rate o dall'ordine di iterazione non definito. Strategia (RUE-7): **unità intere a 64 bit** — niente `float`/`double`/`decimal` in `Ruera.Sim`; RNG proprio in repo con stream per sistema (mai `System.Random`); niente `DateTime.*`, `GetHashCode`, parallelismo nella logica di stato. Regole complete in `DESIGN.md` §2 «Determinismo: strategia».
 - **Micro-ticket Linear** eseguibili «a freddo»: titolo imperativo in inglese, contesto in 2 righe + link alla sezione di DESIGN.md, criteri di accettazione verificabili, file toccati se noti.

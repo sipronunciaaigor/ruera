@@ -26,8 +26,35 @@ Esiste un possibile business secondario: una versione iperrealistica da vendere 
 - **Un solo motore** per tutte le modalità e tutte le viste. Timing, economia e tutto il resto sono dati dai tick.
 - **Tick = 1 giorno di gioco.** La durata reale di un tick (1 secondo o 100) è solo velocità di rendering.
 - **Deterministico dal giorno zero**: stesso seed + stessi input = stessa partita, identica al bit. Niente casualità non seedata, niente dipendenze dal frame rate. Abilita: replay, ghost PvP, esecuzione headless, test automatici di bilanciamento (simulare 50 anni in secondi).
-  - Questione tecnica aperta: fixed-point vs disciplina rigorosa sui float per il cross-platform.
+  - Strategia decisa (RUE-7): unità intere a 64 bit — vedi «Determinismo: strategia» sotto.
 - **Viaggi parametrici, niente fisica**: tempo totale di un mezzo = f(distanza dalla centrale, riempimento, tempo di svuotamento dei punti). Il traffico in grafica è verosimile, non vero.
+
+### Determinismo: strategia *(deciso 2026-07-17 — RUE-7)*
+
+**Decisione: unità intere a 64 bit in tutta la simulazione; la virgola mobile non esiste in `Ruera.Sim`.**
+
+La sim di Ruera è logistica discreta + contabilità: minuti, metri, grammi, centesimi. Non servono funzioni trascendenti né fisica continua, quindi non serve il floating point — che in .NET non garantisce risultati bit-identici tra piattaforme/JIT per le funzioni di libreria (`Math.Sin/Exp/Pow` variano per OS e architettura) e nasconde trappole (SIMD, ordine di somma). Gli interi sono deterministici per costruzione, su qualunque macchina. Il fixed-point custom (es. Q32.32) resta l'opzione di riserva se un giorno servissero curve continue nella sim: introducibile dopo come struct dedicata, senza rompere l'impianto.
+
+**Regole di codifica** (vincolanti per `Ruera.Sim`):
+
+1. Tutte le grandezze di stato sono `long` incapsulati in `readonly record struct` di unità (`Minutes`, `Meters`, `Grams`, `Cents`, …). Vietati `float`, `double`, `decimal` in stato e logica.
+2. Le divisioni dichiarano l'arrotondamento: helper `MulDiv` (intermedio `Int128`, niente overflow), `DivFloor`, `DivRound`. Percentuali e tassi in basis points (1/10 000) applicati via `MulDiv`.
+3. RNG: implementazione propria committata in repo (xoshiro256\*\*). Mai `System.Random` (la sequenza seedata non è garantita stabile tra versioni .NET) né `Guid.NewGuid()`. Stream per sistema derivati dal seed master (SplitMix64 su id di sistema): aggiungere una chiamata random in un sistema non sposta le sequenze degli altri.
+4. Il tempo è il contatore di tick: vietati `DateTime.Now/UtcNow`, `Stopwatch`, `Environment.TickCount` nella sim.
+5. Mai iterare `Dictionary`/`HashSet` nella logica: entità con ID densi, iterazione in ordine di ID o su strutture ordinate esplicitamente.
+6. Niente parallelismo nel calcolo dello stato (`Parallel`, PLINQ, `Task`): la sim è single-thread dentro il tick. Il rendering fa ciò che vuole.
+7. Mai `GetHashCode()` nella logica o nell'hash di stato (quello delle stringhe è randomizzato per processo): hash di stato via FNV-1a/xxHash64 implementati in repo su serializzazione canonica.
+8. Parsing/formatting dei file dati con `InvariantCulture`; i file dati esprimono le quantità già in unità intere.
+9. I `float` vivono solo nel layer di presentazione (Godot) per l'interpolazione visiva e non rientrano mai nella sim.
+
+**Enforcement** (si monta con RUE-11): `Microsoft.CodeAnalysis.BannedApiAnalyzers` su `Ruera.Sim` (BannedSymbols: `System.Random`, `DateTime.Now`, …) + test architetturale via reflection che verifica l'assenza di campi float/double/decimal nei tipi di stato.
+
+**Strategia di test anti-regressione**:
+
+- *ripetizione*: due run con stesso seed e stessi comandi → hash identico a ogni tick;
+- *golden hash*: scenari scriptati con hash attesi committati (si aggiornano solo consapevolmente);
+- *cross-TFM*: `Ruera.Cli` multi-target net9.0/net10.0, output confrontati (in CI);
+- *cross-OS*: stesso confronto su Windows/Linux quando esisterà una pipeline.
 
 ### La giornata come problema di capacità
 
@@ -243,7 +270,7 @@ Manutenzione del verde, pulizia muri/strade, ritiro ingombranti (privati e pubbl
 2. **Dettaglio del sistema eventi** (tipi, frequenze, ritmo delle interruzioni per modalità).
 3. **Pacing fine delle epoche**: quali anni di partenza per quali scenari; eventuale compressione elastica delle epoche povere.
 4. **UI multi-frazione** post-1980: layer/filtri per frazione sulla mappa di pittura (da considerare nel design UI fin dall'inizio).
-5. **Determinismo tecnico**: fixed-point vs disciplina float (da decidere alla prima riga di codice).
+5. ~~Determinismo tecnico~~ — **deciso** (RUE-7, 2026-07-17): unità intere a 64 bit, niente virgola mobile nella simulazione; vedi §2 «Determinismo: strategia».
 6. **Dettaglio scheduler** di riempimento zone e regole di priorità.
 7. Recupero del dettaglio perso sul "2020+: si possono sostituire…".
 8. **Risoluzione degli effetti**: tutto al tick, oppure aggregare i tick e materializzare gli effetti ai checkpoint sulla mappa (es. al rientro in azienda)? Argomento pro-tick: anche nella realtà i flussi hanno cadenze fisse (contratto firmato, paga settimanale/quattordicinale/mensile, spese distribuite nel mese).
