@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Ruera.Cli/Ruera.Cli.csproj" />
+    <Project Path="src/Ruera.Sim/Ruera.Sim.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Ruera.Sim.Tests/Ruera.Sim.Tests.csproj" />
+  </Folder>
+</Solution>
