@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            9.0.x
+            10.0.x
+
+      - name: Build (Release)
+        run: dotnet build Ruera.slnx -c Release
+
+      - name: Test
+        run: dotnet test tests/Ruera.Sim.Tests/Ruera.Sim.Tests.csproj -c Release --no-build
+
+      # Same seed + ticks must print byte-identical state hashes on net9.0 and
+      # net10.0 (DESIGN.md §2 test strategy: cross-TFM golden comparison).
+      - name: Cross-TFM determinism check
+        shell: bash
+        run: |
+          for args in "42 365" "0 1" "7 18250"; do
+            out9=$(dotnet run --project src/Ruera.Cli -c Release -f net9.0 --no-build -- $args)
+            out10=$(dotnet run --project src/Ruera.Cli -c Release -f net10.0 --no-build -- $args)
+            echo "net9.0:  $out9"
+            echo "net10.0: $out10"
+            if [ "$out9" != "$out10" ]; then
+              echo "::error::Cross-TFM output mismatch for '$args'"
+              exit 1
+            fi
+          done
