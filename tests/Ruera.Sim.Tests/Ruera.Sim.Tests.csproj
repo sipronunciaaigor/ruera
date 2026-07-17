@@ -20,4 +20,9 @@
     <ProjectReference Include="..\..\src\Ruera.Sim\Ruera.Sim.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Committed slice data (definitions, maps): tests load and validate the real files. -->
+    <Content Include="..\..\data\**\*.json" LinkBase="data" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

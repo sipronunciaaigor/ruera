@@ -1,0 +1,65 @@
+{
+  "formatVersion": 1,
+  "vehicles": [
+    {
+      "id": "gerla",
+      "name": "Gerla",
+      "capacityGrams": 25000,
+      "fillMinutes": 6,
+      "emptyMinutes": 4,
+      "metersPerMinute": 55,
+      "purchaseCents": 800,
+      "maintenanceCentsPerDay": 0,
+      "crew": 1,
+      "availableFromYear": 1880
+    },
+    {
+      "id": "carretto",
+      "name": "Carretto a mano",
+      "capacityGrams": 300000,
+      "fillMinutes": 10,
+      "emptyMinutes": 12,
+      "metersPerMinute": 45,
+      "purchaseCents": 12000,
+      "maintenanceCentsPerDay": 5,
+      "crew": 2,
+      "availableFromYear": 1880
+    },
+    {
+      "id": "navazza",
+      "name": "Navazza a cavallo",
+      "capacityGrams": 800000,
+      "fillMinutes": 12,
+      "emptyMinutes": 15,
+      "metersPerMinute": 90,
+      "purchaseCents": 60000,
+      "maintenanceCentsPerDay": 150,
+      "crew": 2,
+      "availableFromYear": 1880
+    },
+    {
+      "id": "triciclo",
+      "name": "Triciclo da carico",
+      "capacityGrams": 150000,
+      "fillMinutes": 6,
+      "emptyMinutes": 8,
+      "metersPerMinute": 130,
+      "purchaseCents": 18000,
+      "maintenanceCentsPerDay": 10,
+      "crew": 1,
+      "availableFromYear": 1900
+    },
+    {
+      "id": "camion",
+      "name": "Autocarro",
+      "capacityGrams": 2500000,
+      "fillMinutes": 15,
+      "emptyMinutes": 20,
+      "metersPerMinute": 280,
+      "purchaseCents": 900000,
+      "maintenanceCentsPerDay": 400,
+      "crew": 2,
+      "availableFromYear": 1925
+    }
+  ]
+}

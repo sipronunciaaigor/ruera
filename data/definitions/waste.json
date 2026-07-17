@@ -1,0 +1,10 @@
+{
+  "formatVersion": 1,
+  "wasteTypes": [
+    {
+      "id": "mixed",
+      "name": "Rifiuto indistinto",
+      "baseSaleCentsPerKg": 2
+    }
+  ]
+}
