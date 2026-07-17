@@ -21,7 +21,7 @@
 Se nella sessione hai sviluppato o modificato qualcosa — codice, `DESIGN.md`, pagine Notion, issue Linear — o sono state prese decisioni:
 
 1. Aggiungi una voce al **Diario di sviluppo** in Notion (https://app.notion.com/p/3a005d5d7f7281bb8dd1ef28469799ae): data, cosa è stato fatto, cosa resta aperto. Voce più recente in alto; se esiste già la voce di oggi, estendila.
-2. Se sono state prese **decisioni nuove**, registrale nel database «Log delle decisioni» nell'hub (titolo, data, area, perché).
+2. Se sono state prese **decisioni nuove**, registrale nel database «Log delle decisioni» nell'hub: titolo, data, area, perché, **Ticket** (ID Linear coinvolti, es. `RUE-11, RUE-20`) e **Sezione DESIGN.md** (es. `§2`) — usa `—` dove non applicabile. Se una decisione già registrata acquisisce nuovi ticket o cambia sezione, aggiorna la riga esistente invece di crearne una nuova.
 3. Se il **design** è cambiato, aggiorna `DESIGN.md` — mai duplicarlo in Notion.
 
 Le sessioni di sola lettura/discussione senza esiti non richiedono voci.
