@@ -274,6 +274,7 @@ Manutenzione del verde, pulizia muri/strade, ritiro ingombranti (privati e pubbl
 6. **Dettaglio scheduler** di riempimento zone e regole di priorità.
 7. Recupero del dettaglio perso sul "2020+: si possono sostituire…".
 8. **Risoluzione degli effetti**: tutto al tick, oppure aggregare i tick e materializzare gli effetti ai checkpoint sulla mappa (es. al rientro in azienda)? Argomento pro-tick: anche nella realtà i flussi hanno cadenze fisse (contratto firmato, paga settimanale/quattordicinale/mensile, spese distribuite nel mese).
+9. **Calendario e scenario come dati, non come codice** *(annotato 2026-07-17)*: l'implementazione RUE-11 introduce il calendario come factory method fisso (`SimCalendar.Milano1880()`) — scorciatoia accettabile finché esiste un solo scenario, ma è debito tecnico dichiarato. I calendari cambiano nel tempo (festività, cadenze lavorative) e la timeline storica prevede eventi che alterano le regole del gioco (WWI, WWII, autarchia anni '30 — già annotati in §7 come "da arricchire"). Il calendario/scenario andrà **data-driven** con lo stesso principio già deciso per veicoli/rifiuti/produttori (§2 «Requisiti trasversali», RUE-12): una timeline di eventi configurabile per scenario, non logica sparsa nel codice. Da risolvere insieme allo script di crescita della città (item 1) e alla pipeline mappe (RUE-9), quando arriva il secondo scenario o il primo evento storico vero — non bloccante ora con un solo scenario attivo.
 
 ---
 
@@ -281,6 +282,8 @@ Manutenzione del verde, pulizia muri/strade, ritiro ingombranti (privati e pubbl
 
 **Primo passo: vertical slice — Milano 1880–1930, modalità storia.**
 Gerle, navazzari, prima motorizzazione, appalti condominiali, cernita manuale, un evento normativo/igienico. Se quel cinquantennio è divertente, il progetto sta in piedi.
+
+**Perché uno scenario curato e non il generatore casuale**: il generatore (mappa + traiettorie di crescita, §11 «La città cresce») è un problema più grande e ancora da progettare (§15.1). Uno scenario curato dà contenuto noto e limitato — mappa fissa, produttori noti, tech tree noto — sufficiente per giudicare se il *loop* è divertente, oltre a essere una fixture stabile per i test del motore. Il generatore si affronta dopo, quando c'è un loop validato da generalizzare.
 
 Ordine di costruzione:
 1. Motore a eventi discreti deterministico (tick = giorno)
