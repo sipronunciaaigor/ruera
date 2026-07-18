@@ -173,6 +173,13 @@ Numeri banali per il disco. Se gli snapshot pesassero, si dirada la ritenzione (
 
 La combinazione produttore-aggregato × multi-frazione fa sì che la **storia stessa sia la rampa di complessità**: mucchio indistinto (un flusso) → bidoni (capacità e sostituzione) → differenziata 1980 (problema multi-commodity sulla stessa mappa). Il gioco si insegna da solo giocando la storia.
 
+**Ontologia degli oggetti di gioco** *(annotato 2026-07-18)*:
+
+- **Produttore, vettore (carrier) e consumatore sono ruoli componibili, non gerarchie di classi.** Un'entità può cumularli — la fabbrica di moka dell'endgame (§8) consuma alluminio, produce caffettiere e produce rifiuti — e ogni entità ha un **proprietario** (giocatore, rivale AI, città). «Giocabile» è un attributo di proprietà, non una classe base: niente `IPlayable`.
+- Il **«mezzo» è il vettore in senso lato**: lo spazzino con la gerla è un vettore quanto la navazza o l'autocarro. La composizione gerle→carretto (§7: gli spazzini scaricano nel carretto) si modellerà come **composizione di unità di raccolta** quando arriverà la meccanica, non con tipi speciali.
+- **Selezione e cliccabilità sono del renderer (Godot), mai della sim**: niente `IClickable` in `Ruera.Sim`. L'ispezione passa dalle query di lettura (RUE-19); le «azioni disponibili» su un'entità sono i **comandi validi in quel momento** (la validazione dei comandi esiste già, RUE-15) — ogni mutazione resta un comando al confine del tick.
+- Le **linee di servizio** (§4: i giri come template con nome) sono l'oggetto gestionale che aggrega i totali per rotta; i totali cumulativi di vita partita restano soggetti alla nota §15.10 (accumulatori a 128 bit).
+
 ---
 
 ## 4. Copertura a pittura
@@ -185,7 +192,7 @@ Meccanica centrale di assegnazione delle rotte, stile janitor di RollerCoaster T
 - **Anteprima sempre pessimista**: mostra il costo pieno, ignora le sovrapposizioni. Il risparmio da sovrapposizione (il primo camion che arriva svuota, il secondo guadagna tempo) si materializza solo in esecuzione, come slack. Regola generale del gioco: *le stime sono pessimiste, la realtà può solo essere migliore.*
 - I **suggerimenti del motore** sono astratti: ignorano le sovrapposizioni. Coprire è compito del giocatore, non del motore.
 - **Scala urbana** (gerarchia, non pennello più grande):
-  - i giri sono **template con nome**, salvati e schedulati sul pattern settimanale ("Giro Navigli: camion 3 e 7, lun/gio");
+  - i giri sono **template con nome** — le «linee di servizio» — salvati e schedulati sul pattern settimanale ("Giro Navigli: camion 3 e 7, lun/gio"); la linea è anche l'unità di rendicontazione (totali per rotta);
   - a scala di quartiere si assegna un mezzo a una **zona** e lo scheduler (semplice, deterministico, leggibile) la riempie; la pittura via-per-via resta come override;
   - la crescita storica fa da tutorial: nessun giocatore affronta mai "città enorme + strumento nuovo".
 - **Effetto emergente da proteggere**: andata/ritorno dal deposito sono costo fisso crescente con la distanza → le zone lontane diventano rosse → il giocatore apre depositi satellite. Nessuna meccanica deve aggirarlo (no teletrasporti, no costi forfettari).
