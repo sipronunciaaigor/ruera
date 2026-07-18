@@ -115,6 +115,19 @@ public sealed class Simulation
             AdvanceOneTick();
     }
 
+    /// <summary>Reinstalls a loaded command log: full history kept, not-yet-resolved days re-queued.</summary>
+    internal void RestoreLog(IReadOnlyList<CommandLogEntry> entries)
+    {
+        _log.Clear();
+        _pending.Clear();
+        foreach (var entry in entries)
+        {
+            _log.Add(entry);
+            if (entry.Day >= State.Tick)
+                _pending.Add(entry);
+        }
+    }
+
     private void ScheduleCore(long day, SimCommand command)
     {
         if (day < State.Tick)
