@@ -357,7 +357,7 @@ La città evolve nei 170 anni (popolazione, quartieri, eventi storici). **Sistem
 
 **OSM scartato per la slice**: la rete attuale non è la Milano del 1880 (cerchia dei navigli scoperta, corpi santi), e la curatela storica supererebbe il costo dell'authoring a scala aggregata. Il formato resta neutrale: un importer OSM→formato può arrivare per il gioco libero, e il **generatore** («le città storiche sono seed curati», sopra) emetterà lo stesso formato.
 
-**Toy map committata**: `data/maps/toy.map.json` — griglia 4×3 (12 nodi, 17 archi con lunghezze leggermente irregolari), 1 deposito d'angolo, 6 produttori su 4 archetipi placeholder (`condo-small`, `condo-large`, `shop`, `factory` — definiti per davvero con RUE-12). Fixture per RUE-13/16: basta per giri nearest-neighbor, costi di andata/ritorno dal deposito e accumulo dei non serviti.
+**Toy map committata**: `data/maps/toy.map.json` — griglia 4×3 (12 nodi, 17 archi con lunghezze leggermente irregolari), 1 deposito d'angolo, 6 produttori su 4 archetipi placeholder (`base:condo-small`, `base:condo-large`, `base:shop`, `base:factory` — definiti per davvero con RUE-12; id namespaced per la regola di moddabilità, §2). Fixture per RUE-13/16: basta per giri nearest-neighbor, costi di andata/ritorno dal deposito e accumulo dei non serviti.
 
 La mappa è **dato di scenario**: entra nell'hash dei dati di scenario nell'header dei salvataggi (§2 «Save e replay: formato»).
 

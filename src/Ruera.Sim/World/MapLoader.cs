@@ -58,6 +58,9 @@ public static class MapLoader
         Require(map.FormatVersion == SupportedFormatVersion,
             Invariant($"unsupported formatVersion {map.FormatVersion} (supported: {SupportedFormatVersion})"));
         Require(!string.IsNullOrWhiteSpace(map.Id), "map id must not be empty");
+        var colon = map.Id.IndexOf(':');
+        Require(colon > 0 && colon == map.Id.LastIndexOf(':') && colon < map.Id.Length - 1,
+            Invariant($"map id '{map.Id}' must be namespaced as 'package:name' (DESIGN.md §2 «Moddabilità»)"));
         Require(!string.IsNullOrWhiteSpace(map.Name), "map name must not be empty");
         Require(map.Nodes.Count > 0, "map must have at least one node");
         Require(map.Depots.Count > 0, "map must have at least one depot");

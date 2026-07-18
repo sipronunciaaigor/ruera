@@ -8,7 +8,7 @@ public class DefinitionTests
         Path.Combine(AppContext.BaseDirectory, "data", "definitions");
 
     private const string MinimalWasteJson = """
-        { "formatVersion": 1, "wasteTypes": [ { "id": "mixed", "name": "Mixed", "baseSaleCentsPerKg": 2 } ] }
+        { "formatVersion": 1, "wasteTypes": [ { "id": "base:mixed", "name": "Mixed", "baseSaleCentsPerKg": 2 } ] }
         """;
 
     private const string MinimalProducersJson = """
@@ -16,9 +16,9 @@ public class DefinitionTests
           "formatVersion": 1,
           "archetypes": [
             {
-              "id": "condo-small", "name": "Small condo",
+              "id": "base:condo-small", "name": "Small condo",
               "bufferGrams": 120000, "maxSanitaryIntervalTicks": 7, "contractCentsPerMonth": 3000,
-              "production": [ { "waste": "mixed", "gramsPerTick": 12000 } ]
+              "production": [ { "waste": "base:mixed", "gramsPerTick": 12000 } ]
             }
           ]
         }
@@ -30,7 +30,7 @@ public class DefinitionTests
 
     private const string GerlaEntry = """
         {
-          "id": "gerla", "name": "Gerla",
+          "id": "base:gerla", "name": "Gerla",
           "capacityGrams": 25000, "fillMinutes": 6, "emptyMinutes": 4, "metersPerMinute": 55,
           "purchaseCents": 800, "maintenanceCentsPerDay": 0, "crew": 1, "availableFromYear": 1880
         }
@@ -42,12 +42,12 @@ public class DefinitionTests
         var registry = DefinitionLoader.LoadFromDirectory(SliceDataDirectory);
 
         Assert.Equal(5, registry.Vehicles.Count);
-        Assert.Equal(25_000, registry.Vehicle("gerla").CapacityGrams);
-        Assert.Equal(1925, registry.Vehicle("camion").AvailableFromYear);
-        Assert.Equal(2, registry.Archetype("condo-large").MaxSanitaryIntervalTicks);
+        Assert.Equal(25_000, registry.Vehicle("base:gerla").CapacityGrams);
+        Assert.Equal(1925, registry.Vehicle("base:camion").AvailableFromYear);
+        Assert.Equal(2, registry.Archetype("base:condo-large").MaxSanitaryIntervalTicks);
 
         // The toy map (RUE-9) references exactly these archetype ids.
-        foreach (var id in (string[])["condo-small", "condo-large", "shop", "factory"])
+        foreach (var id in (string[])["base:condo-small", "base:condo-large", "base:shop", "base:factory"])
             Assert.True(registry.TryGetProducerArchetype(id, out _), $"missing archetype '{id}'");
     }
 
@@ -60,7 +60,7 @@ public class DefinitionTests
         {
             var compactorEntry = """
                 {
-                  "id": "autocompattatore", "name": "Autocompattatore",
+                  "id": "base:autocompattatore", "name": "Autocompattatore",
                   "capacityGrams": 8000000, "fillMinutes": 10, "emptyMinutes": 25, "metersPerMinute": 250,
                   "purchaseCents": 2500000, "maintenanceCentsPerDay": 900, "crew": 2, "availableFromYear": 1955
                 }
@@ -71,7 +71,7 @@ public class DefinitionTests
 
             var registry = DefinitionLoader.LoadFromDirectory(directory);
 
-            var compactor = registry.Vehicle("autocompattatore");
+            var compactor = registry.Vehicle("base:autocompattatore");
             Assert.Equal(8_000_000, compactor.Capacity.Value);
             Assert.Equal(2, registry.Vehicles.Count);
         }
@@ -85,7 +85,7 @@ public class DefinitionTests
     public void EraGating_UsesAvailabilityYearAndRndAnticipation()
     {
         var registry = DefinitionLoader.LoadFromDirectory(SliceDataDirectory);
-        var camion = registry.Vehicle("camion"); // available from 1925
+        var camion = registry.Vehicle("base:camion"); // available from 1925
 
         Assert.False(camion.IsAvailable(1924));
         Assert.True(camion.IsAvailable(1925));
@@ -123,7 +123,7 @@ public class DefinitionTests
         var exception = Assert.Throws<DefinitionLoadException>(() =>
             DefinitionLoader.Load(VehiclesJson(zeroCapacity), MinimalWasteJson, MinimalProducersJson));
 
-        Assert.Contains("gerla", exception.Message);
+        Assert.Contains("base:gerla", exception.Message);
         Assert.Contains("capacityGrams", exception.Message);
     }
 
@@ -133,19 +133,31 @@ public class DefinitionTests
         var exception = Assert.Throws<DefinitionLoadException>(() =>
             DefinitionLoader.Load(VehiclesJson(GerlaEntry + "," + GerlaEntry), MinimalWasteJson, MinimalProducersJson));
 
-        Assert.Contains("duplicate id 'gerla'", exception.Message);
+        Assert.Contains("duplicate id 'base:gerla'", exception.Message);
     }
 
     [Fact]
     public void ProductionReferencingUnknownWaste_Fails()
     {
-        var badProducers = MinimalProducersJson.Replace("\"waste\": \"mixed\"", "\"waste\": \"plastica\"");
+        var badProducers = MinimalProducersJson.Replace("\"waste\": \"base:mixed\"", "\"waste\": \"base:plastica\"");
 
         var exception = Assert.Throws<DefinitionLoadException>(() =>
             DefinitionLoader.Load(VehiclesJson(GerlaEntry), MinimalWasteJson, badProducers));
 
-        Assert.Contains("plastica", exception.Message);
-        Assert.Contains("condo-small", exception.Message);
+        Assert.Contains("base:plastica", exception.Message);
+        Assert.Contains("base:condo-small", exception.Message);
+    }
+
+    [Fact]
+    public void UnNamespacedId_IsRejected()
+    {
+        // Moddability day-one rule (DESIGN.md §2): ids are package:name.
+        var bare = GerlaEntry.Replace("base:gerla", "gerla");
+
+        var exception = Assert.Throws<DefinitionLoadException>(() =>
+            DefinitionLoader.Load(VehiclesJson(bare), MinimalWasteJson, MinimalProducersJson));
+
+        Assert.Contains("package:name", exception.Message);
     }
 
     [Fact]
@@ -164,10 +176,10 @@ public class DefinitionTests
     {
         var registry = DefinitionLoader.Load(VehiclesJson(GerlaEntry), MinimalWasteJson, MinimalProducersJson);
 
-        var exception = Assert.Throws<KeyNotFoundException>(() => registry.Vehicle("zeppelin"));
+        var exception = Assert.Throws<KeyNotFoundException>(() => registry.Vehicle("base:zeppelin"));
 
-        Assert.Contains("zeppelin", exception.Message);
-        Assert.Contains("gerla", exception.Message);
+        Assert.Contains("base:zeppelin", exception.Message);
+        Assert.Contains("base:gerla", exception.Message);
     }
 
     [Fact]

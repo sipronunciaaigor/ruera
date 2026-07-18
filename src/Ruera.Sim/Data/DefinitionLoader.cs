@@ -83,6 +83,7 @@ public static class DefinitionLoader
         foreach (var vehicle in vehicles)
         {
             Require(!string.IsNullOrWhiteSpace(vehicle.Id), "vehicles.json", vehicle.Id, "id must not be empty");
+            RequireNamespacedId(vehicle.Id, "vehicles.json");
             Require(!string.IsNullOrWhiteSpace(vehicle.Name), "vehicles.json", vehicle.Id, "name must not be empty");
             Require(vehicle.CapacityGrams > 0, "vehicles.json", vehicle.Id, Invariant($"capacityGrams must be > 0 (was {vehicle.CapacityGrams})"));
             Require(vehicle.FillMinutes >= 0, "vehicles.json", vehicle.Id, Invariant($"fillMinutes must be >= 0 (was {vehicle.FillMinutes})"));
@@ -101,6 +102,7 @@ public static class DefinitionLoader
         foreach (var waste in wasteTypes)
         {
             Require(!string.IsNullOrWhiteSpace(waste.Id), "waste.json", waste.Id, "id must not be empty");
+            RequireNamespacedId(waste.Id, "waste.json");
             Require(!string.IsNullOrWhiteSpace(waste.Name), "waste.json", waste.Id, "name must not be empty");
             Require(waste.BaseSaleCentsPerKg >= 0, "waste.json", waste.Id, Invariant($"baseSaleCentsPerKg must be >= 0 (was {waste.BaseSaleCentsPerKg})"));
         }
@@ -113,6 +115,7 @@ public static class DefinitionLoader
         foreach (var archetype in archetypes)
         {
             Require(!string.IsNullOrWhiteSpace(archetype.Id), "producers.json", archetype.Id, "id must not be empty");
+            RequireNamespacedId(archetype.Id, "producers.json");
             Require(!string.IsNullOrWhiteSpace(archetype.Name), "producers.json", archetype.Id, "name must not be empty");
             Require(archetype.BufferGrams > 0, "producers.json", archetype.Id, Invariant($"bufferGrams must be > 0 (was {archetype.BufferGrams})"));
             Require(archetype.MaxSanitaryIntervalTicks >= 1, "producers.json", archetype.Id, Invariant($"maxSanitaryIntervalTicks must be >= 1 (was {archetype.MaxSanitaryIntervalTicks})"));
@@ -131,6 +134,15 @@ public static class DefinitionLoader
                 seenWaste.Add(production.Waste);
             }
         }
+    }
+
+    /// <summary>Moddability day-one rule (DESIGN.md §2 «Moddabilità»): every content id is package:name.</summary>
+    private static void RequireNamespacedId(string id, string fileName)
+    {
+        var colon = id.IndexOf(':');
+        if (colon <= 0 || colon != id.LastIndexOf(':') || colon == id.Length - 1)
+            throw new DefinitionLoadException(Invariant(
+                $"{fileName}: id '{id}' must be namespaced as 'package:name' (e.g. 'base:gerla')."));
     }
 
     private static void RequireUniqueIds(IEnumerable<string> ids, string fileName)

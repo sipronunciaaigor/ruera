@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "vehicles": [
     {
-      "id": "gerla",
+      "id": "base:gerla",
       "name": "Gerla",
       "capacityGrams": 25000,
       "fillMinutes": 6,
@@ -14,7 +14,7 @@
       "availableFromYear": 1880
     },
     {
-      "id": "carretto",
+      "id": "base:carretto",
       "name": "Carretto a mano",
       "capacityGrams": 300000,
       "fillMinutes": 10,
@@ -26,7 +26,7 @@
       "availableFromYear": 1880
     },
     {
-      "id": "navazza",
+      "id": "base:navazza",
       "name": "Navazza a cavallo",
       "capacityGrams": 800000,
       "fillMinutes": 12,
@@ -38,7 +38,7 @@
       "availableFromYear": 1880
     },
     {
-      "id": "triciclo",
+      "id": "base:triciclo",
       "name": "Triciclo da carico",
       "capacityGrams": 150000,
       "fillMinutes": 6,
@@ -50,7 +50,7 @@
       "availableFromYear": 1900
     },
     {
-      "id": "camion",
+      "id": "base:camion",
       "name": "Autocarro",
       "capacityGrams": 2500000,
       "fillMinutes": 15,
