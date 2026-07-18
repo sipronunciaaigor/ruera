@@ -107,9 +107,9 @@ public class SimulationTests
         var sim = new Simulation(42);
         sim.Advance(365);
 
-        // Updated 2026-07-18 (RUE-14): state format v3 adds economy state to
-        // the hash (cash, wages, workers, contracts, pending deliveries) — a
-        // conscious SimVersion bump, like v2 (RUE-16) before it.
-        Assert.Equal(0x2ca4fcbdb8769befUL, sim.StateHash());
+        // Updated 2026-07-18 (RUE-31): state format v4 adds route templates to
+        // the hash — a conscious SimVersion bump, like v2 (RUE-16) and v3
+        // (RUE-14) before it.
+        Assert.Equal(0xaf6f3cb46941e76eUL, sim.StateHash());
     }
 }

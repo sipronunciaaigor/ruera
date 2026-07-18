@@ -29,8 +29,10 @@ public sealed class SimState
     private readonly List<VehicleState> _vehicles = []; // ids assigned densely: always sorted
     private readonly List<WorkerState> _workers = [];
     private readonly List<(long DeliveryTick, string VehicleTypeId)> _pendingDeliveries = [];
+    private readonly List<RouteTemplate> _templates = []; // ids monotonic: always sorted
     private readonly List<SimEvent> _events = [];
     private readonly List<DayPlanReport> _reports = [];
+    private readonly List<LineReport> _lineReports = [];
 
     public ulong Seed { get; }
 
@@ -52,6 +54,8 @@ public sealed class SimState
     internal int NextVehicleId { get; private set; } = 1;
 
     internal int NextWorkerId { get; private set; } = 1;
+
+    internal int NextTemplateId { get; private set; } = 1;
 
     public SimCalendar Calendar { get; }
 
@@ -108,11 +112,35 @@ public sealed class SimState
     /// <summary>Ordered vehicles bought but not yet delivered (RUE-6: scheduled future-tick effects).</summary>
     public IReadOnlyList<(long DeliveryTick, string VehicleTypeId)> PendingDeliveries => _pendingDeliveries;
 
+    /// <summary>Service lines in id order (DESIGN.md §4).</summary>
+    public IReadOnlyList<RouteTemplate> Templates => _templates;
+
     /// <summary>Events emitted while resolving the last tick.</summary>
     public IReadOnlyList<SimEvent> LastTickEvents => _events;
 
     /// <summary>Per-vehicle outcome of the last resolved day.</summary>
     public IReadOnlyList<DayPlanReport> LastDayReports => _reports;
+
+    /// <summary>Per-line totals of the last resolved day (template-driven work only).</summary>
+    public IReadOnlyList<LineReport> LastLineReports => _lineReports;
+
+    public RouteTemplate Template(int id) =>
+        TryGetTemplate(id, out var template) ? template : throw new KeyNotFoundException($"Unknown route template id {id}.");
+
+    internal bool TryGetTemplate(int id, out RouteTemplate template)
+    {
+        foreach (var candidate in _templates) // id order
+        {
+            if (candidate.Id == id)
+            {
+                template = candidate;
+                return true;
+            }
+        }
+
+        template = null!;
+        return false;
+    }
 
     public ProducerState Producer(int id)
     {
@@ -161,6 +189,26 @@ public sealed class SimState
         return worker.Id;
     }
 
+    internal int AddTemplate(string name, int[] edgeIds, byte weekdayMask)
+    {
+        var template = new RouteTemplate(NextTemplateId, name, [.. edgeIds.Distinct().OrderBy(id => id)], weekdayMask);
+        NextTemplateId++;
+        _templates.Add(template);
+        return template.Id;
+    }
+
+    internal void RemoveTemplate(int id)
+    {
+        for (var i = 0; i < _templates.Count; i++)
+        {
+            if (_templates[i].Id == id)
+            {
+                _templates.RemoveAt(i);
+                return;
+            }
+        }
+    }
+
     internal void ScheduleDelivery(long deliveryTick, string vehicleTypeId) =>
         _pendingDeliveries.Add((deliveryTick, vehicleTypeId));
 
@@ -185,11 +233,14 @@ public sealed class SimState
     {
         _events.Clear();
         _reports.Clear();
+        _lineReports.Clear();
     }
 
     internal void Emit(SimEvent simEvent) => _events.Add(simEvent);
 
     internal void Report(DayPlanReport report) => _reports.Add(report);
+
+    internal void ReportLine(LineReport report) => _lineReports.Add(report);
 
     /// <summary>Feeds the canonical field stream into the state hash (same order as snapshots).</summary>
     public void AddToHash(ref Fnv1a64 hasher)
@@ -250,6 +301,21 @@ public sealed class SimState
             writer.Add(deliveryTick);
             writer.Add(typeId);
         }
+
+        writer.Add(NextTemplateId);
+        writer.Add(_templates.Count);
+        foreach (var template in _templates) // id order
+        {
+            writer.Add(template.Id);
+            writer.Add(template.Name);
+            writer.Add(template.WeekdayMask);
+            writer.Add(template.EdgeArray.Length);
+            foreach (var edgeId in template.EdgeArray) // sorted
+                writer.Add(edgeId);
+            writer.Add(template.AssignedArray.Length);
+            foreach (var vehicleId in template.AssignedArray) // sorted
+                writer.Add(vehicleId);
+        }
     }
 
     /// <summary>Restores state from canonical snapshot bytes; mirrors <see cref="WriteTo"/>.</summary>
@@ -303,5 +369,24 @@ public sealed class SimState
         var deliveryCount = reader.ReadInt32();
         for (var i = 0; i < deliveryCount; i++)
             _pendingDeliveries.Add((reader.ReadInt64(), reader.ReadString()));
+
+        NextTemplateId = reader.ReadInt32();
+        _templates.Clear();
+        var templateCount = reader.ReadInt32();
+        for (var i = 0; i < templateCount; i++)
+        {
+            var id = reader.ReadInt32();
+            var name = reader.ReadString();
+            var mask = checked((byte)reader.ReadInt32());
+            var edges = new int[reader.ReadInt32()];
+            for (var e = 0; e < edges.Length; e++)
+                edges[e] = reader.ReadInt32();
+            var template = new RouteTemplate(id, name, edges, mask);
+            var assigned = new int[reader.ReadInt32()];
+            for (var v = 0; v < assigned.Length; v++)
+                assigned[v] = reader.ReadInt32();
+            template.SetAssignedVehicles(assigned);
+            _templates.Add(template);
+        }
     }
 }

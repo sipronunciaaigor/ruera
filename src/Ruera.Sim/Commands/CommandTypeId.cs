@@ -13,4 +13,8 @@ public enum CommandTypeId : ushort
     BuyVehicle = 5,
     HireWorker = 6,
     SignContract = 7,
+    CreateRouteTemplate = 8,
+    UpdateRouteTemplate = 9,
+    DeleteRouteTemplate = 10,
+    SetTemplateVehicles = 11,
 }

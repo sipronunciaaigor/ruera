@@ -22,6 +22,21 @@ internal sealed class DayPlanSystem : ISimSystem
         if (state.Graph is null || !calendar.IsWorkingDay(state.Tick))
             return; // production continues on rest days; collection does not
 
+        // Service lines scheduled for today's weekday (DESIGN.md §4), id order.
+        var weekday = calendar.DateAt(state.Tick).Weekday;
+        var activeLines = new List<RouteTemplate>();
+        foreach (var template in state.Templates) // id order
+        {
+            if (template.IsActiveOn(weekday))
+                activeLines.Add(template);
+        }
+
+        var lineCollected = new long[activeLines.Count];
+        var lineDispatched = new int[activeLines.Count];
+        var lineServed = new List<int>[activeLines.Count];
+        for (var i = 0; i < activeLines.Count; i++)
+            lineServed[i] = [];
+
         // Crew gating: vehicles staff up in id order from productive workers
         // only — trainees cost wages but crew nothing (DESIGN.md §2).
         var crewAvailable = 0;
@@ -33,20 +48,51 @@ internal sealed class DayPlanSystem : ISimSystem
 
         foreach (var vehicle in state.Vehicles) // id order: deterministic
         {
-            if (vehicle.CoverageArray.Length == 0 || vehicle.Definition.Crew > crewAvailable)
+            // Direct painted coverage is the override (DESIGN.md §4);
+            // otherwise the union of today's assigned lines, in line id order.
+            int[] coverage;
+            var attributed = new List<int>(); // indices into activeLines
+            if (vehicle.CoverageArray.Length > 0)
+            {
+                coverage = vehicle.CoverageArray;
+            }
+            else
+            {
+                var union = new List<int>();
+                for (var i = 0; i < activeLines.Count; i++)
+                {
+                    if (Array.BinarySearch(activeLines[i].AssignedArray, vehicle.Id) < 0)
+                        continue;
+                    attributed.Add(i);
+                    union.AddRange(activeLines[i].EdgeArray);
+                }
+
+                coverage = [.. union.Distinct().OrderBy(id => id)];
+            }
+
+            if (coverage.Length == 0 || vehicle.Definition.Crew > crewAvailable)
                 continue;
             crewAvailable -= vehicle.Definition.Crew;
-            ExecuteTour(state, vehicle);
+            foreach (var lineIndex in attributed)
+                lineDispatched[lineIndex]++;
+            ExecuteTour(state, vehicle, coverage, activeLines, attributed, lineCollected, lineServed);
+        }
+
+        for (var i = 0; i < activeLines.Count; i++)
+        {
+            state.ReportLine(new LineReport(activeLines[i].Id, lineDispatched[i], lineCollected[i],
+                [.. lineServed[i].Distinct().OrderBy(id => id)]));
         }
     }
 
-    private static void ExecuteTour(SimState state, VehicleState vehicle)
+    private static void ExecuteTour(SimState state, VehicleState vehicle, int[] coverageEdges,
+        List<RouteTemplate> activeLines, List<int> attributed, long[] lineCollected, List<int>[] lineServed)
     {
         var graph = state.Graph!;
         var definition = vehicle.Definition;
         var depotNode = graph.Depots[0].Node;
 
-        var remaining = new List<int>(vehicle.CoverageArray); // sorted: ties pick lowest id
+        var remaining = new List<int>(coverageEdges); // sorted: ties pick lowest id
         var served = new List<int>();
         var current = depotNode;
         long used = 0, collected = 0;
@@ -83,6 +129,15 @@ internal sealed class DayPlanSystem : ISimSystem
                 capacityLeft -= take;
                 collected += take;
                 served.Add(producer.Id);
+                foreach (var lineIndex in attributed)
+                {
+                    if (Array.BinarySearch(activeLines[lineIndex].EdgeArray, edge.Id) >= 0)
+                    {
+                        lineCollected[lineIndex] += take;
+                        lineServed[lineIndex].Add(producer.Id);
+                        break; // shared edges attribute to the lowest line id
+                    }
+                }
             }
 
             leftDepot = true;

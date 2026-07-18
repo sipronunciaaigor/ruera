@@ -58,6 +58,10 @@ public static class CommandSerializer
                 CommandTypeId.BuyVehicle => BuyVehicleCommand.ReadPayload(reader),
                 CommandTypeId.HireWorker => HireWorkerCommand.ReadPayload(reader),
                 CommandTypeId.SignContract => SignContractCommand.ReadPayload(reader),
+                CommandTypeId.CreateRouteTemplate => CreateRouteTemplateCommand.ReadPayload(reader),
+                CommandTypeId.UpdateRouteTemplate => UpdateRouteTemplateCommand.ReadPayload(reader),
+                CommandTypeId.DeleteRouteTemplate => DeleteRouteTemplateCommand.ReadPayload(reader),
+                CommandTypeId.SetTemplateVehicles => SetTemplateVehiclesCommand.ReadPayload(reader),
                 _ => throw new InvalidDataException(string.Create(CultureInfo.InvariantCulture,
                     $"Unknown command type id {(ushort)typeId}.")),
             };
