@@ -107,8 +107,9 @@ public class SimulationTests
         var sim = new Simulation(42);
         sim.Advance(365);
 
-        // Updated 2026-07-18 (RUE-16): state format v2 adds world state to the
-        // hash (stockpile, fleet, producers) — a conscious SimVersion bump.
-        Assert.Equal(0x4946d616838974faUL, sim.StateHash());
+        // Updated 2026-07-18 (RUE-14): state format v3 adds economy state to
+        // the hash (cash, wages, workers, contracts, pending deliveries) — a
+        // conscious SimVersion bump, like v2 (RUE-16) before it.
+        Assert.Equal(0x2ca4fcbdb8769befUL, sim.StateHash());
     }
 }

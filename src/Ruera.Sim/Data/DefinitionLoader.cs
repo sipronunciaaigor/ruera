@@ -116,6 +116,7 @@ public static class DefinitionLoader
             Require(!string.IsNullOrWhiteSpace(archetype.Name), "producers.json", archetype.Id, "name must not be empty");
             Require(archetype.BufferGrams > 0, "producers.json", archetype.Id, Invariant($"bufferGrams must be > 0 (was {archetype.BufferGrams})"));
             Require(archetype.MaxSanitaryIntervalTicks >= 1, "producers.json", archetype.Id, Invariant($"maxSanitaryIntervalTicks must be >= 1 (was {archetype.MaxSanitaryIntervalTicks})"));
+            Require(archetype.ContractCentsPerMonth >= 0, "producers.json", archetype.Id, Invariant($"contractCentsPerMonth must be >= 0 (was {archetype.ContractCentsPerMonth})"));
             Require(archetype.Production.Count > 0, "producers.json", archetype.Id, "production must not be empty");
 
             var seenWaste = new List<string>();

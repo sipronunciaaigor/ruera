@@ -30,4 +30,7 @@ public sealed class ProducerState
 
     /// <summary>Ticks spent in violation so far (fines hook for RUE-14).</summary>
     public long ViolationCount { get; internal set; }
+
+    /// <summary>Under a condo contract: pays the archetype's monthly fee (DESIGN.md §8).</summary>
+    public bool HasContract { get; internal set; }
 }

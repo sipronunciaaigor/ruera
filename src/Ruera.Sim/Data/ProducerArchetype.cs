@@ -28,6 +28,9 @@ public sealed class ProducerArchetype
     /// <summary>Maximum ticks between collections before a sanitary violation (DESIGN.md §3).</summary>
     public required int MaxSanitaryIntervalTicks { get; init; }
 
+    /// <summary>Monthly condo-contract fee when under contract (DESIGN.md §8; cadence per RUE-6).</summary>
+    public required long ContractCentsPerMonth { get; init; }
+
     public required List<WasteProduction> Production { get; init; }
 
     public Grams Buffer => new(BufferGrams);

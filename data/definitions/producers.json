@@ -6,8 +6,12 @@
       "name": "Condominio piccolo",
       "bufferGrams": 120000,
       "maxSanitaryIntervalTicks": 7,
+      "contractCentsPerMonth": 3000,
       "production": [
-        { "waste": "mixed", "gramsPerTick": 12000 }
+        {
+          "waste": "mixed",
+          "gramsPerTick": 12000
+        }
       ]
     },
     {
@@ -15,8 +19,12 @@
       "name": "Condominio grande (52 famiglie)",
       "bufferGrams": 300000,
       "maxSanitaryIntervalTicks": 2,
+      "contractCentsPerMonth": 12000,
       "production": [
-        { "waste": "mixed", "gramsPerTick": 80000 }
+        {
+          "waste": "mixed",
+          "gramsPerTick": 80000
+        }
       ]
     },
     {
@@ -24,8 +32,12 @@
       "name": "Bottega",
       "bufferGrams": 60000,
       "maxSanitaryIntervalTicks": 7,
+      "contractCentsPerMonth": 1500,
       "production": [
-        { "waste": "mixed", "gramsPerTick": 5000 }
+        {
+          "waste": "mixed",
+          "gramsPerTick": 5000
+        }
       ]
     },
     {
@@ -33,8 +45,12 @@
       "name": "Opificio",
       "bufferGrams": 1200000,
       "maxSanitaryIntervalTicks": 3,
+      "contractCentsPerMonth": 20000,
       "production": [
-        { "waste": "mixed", "gramsPerTick": 150000 }
+        {
+          "waste": "mixed",
+          "gramsPerTick": 150000
+        }
       ]
     }
   ]

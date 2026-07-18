@@ -22,6 +22,7 @@ public sealed class Simulation
         new WasteProductionSystem(),
         new DayPlanSystem(),
         new ViolationSystem(),
+        new EconomySystem(),
     ];
 
     private readonly List<CommandLogEntry> _pending = [];
@@ -29,7 +30,7 @@ public sealed class Simulation
 
     public SimState State { get; }
 
-    public SimCalendar Calendar { get; }
+    public SimCalendar Calendar => State.Calendar;
 
     /// <summary>Worldless engine with the vertical-slice default calendar (tick 0 = 1880-01-01).</summary>
     public Simulation(ulong seed) : this(seed, SimCalendar.Milano1880(), null, null)
@@ -48,8 +49,7 @@ public sealed class Simulation
 
     public Simulation(ulong seed, SimCalendar calendar, StreetGraph? graph, DefinitionRegistry? definitions)
     {
-        State = new SimState(seed, graph, definitions);
-        Calendar = calendar;
+        State = new SimState(seed, calendar, graph, definitions);
     }
 
     public ulong Seed => State.Seed;

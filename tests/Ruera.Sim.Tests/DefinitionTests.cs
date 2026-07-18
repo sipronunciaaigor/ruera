@@ -17,7 +17,7 @@ public class DefinitionTests
           "archetypes": [
             {
               "id": "condo-small", "name": "Small condo",
-              "bufferGrams": 120000, "maxSanitaryIntervalTicks": 7,
+              "bufferGrams": 120000, "maxSanitaryIntervalTicks": 7, "contractCentsPerMonth": 3000,
               "production": [ { "waste": "mixed", "gramsPerTick": 12000 } ]
             }
           ]

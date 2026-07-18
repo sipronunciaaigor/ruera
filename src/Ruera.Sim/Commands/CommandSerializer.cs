@@ -55,6 +55,9 @@ public static class CommandSerializer
                 CommandTypeId.DrawRandom => DrawRandomCommand.ReadPayload(reader),
                 CommandTypeId.AddVehicle => AddVehicleCommand.ReadPayload(reader),
                 CommandTypeId.SetCoverage => SetCoverageCommand.ReadPayload(reader),
+                CommandTypeId.BuyVehicle => BuyVehicleCommand.ReadPayload(reader),
+                CommandTypeId.HireWorker => HireWorkerCommand.ReadPayload(reader),
+                CommandTypeId.SignContract => SignContractCommand.ReadPayload(reader),
                 _ => throw new InvalidDataException(string.Create(CultureInfo.InvariantCulture,
                     $"Unknown command type id {(ushort)typeId}.")),
             };
