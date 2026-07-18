@@ -29,4 +29,13 @@ public struct Fnv1a64
     public void Add(int value) => Add((long)value);
 
     public void Add(bool value) => Add(value ? (byte)1 : (byte)0);
+
+    /// <summary>Length-prefixed UTF-8 bytes: canonical and culture-free.</summary>
+    public void Add(string value)
+    {
+        var bytes = System.Text.Encoding.UTF8.GetBytes(value);
+        Add(bytes.Length);
+        foreach (var b in bytes)
+            Add(b);
+    }
 }

@@ -8,4 +8,6 @@ public enum CommandTypeId : ushort
 {
     NoOp = 1,
     DrawRandom = 2,
+    AddVehicle = 3,
+    SetCoverage = 4,
 }
