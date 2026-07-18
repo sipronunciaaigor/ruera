@@ -72,11 +72,21 @@ public sealed class Xoshiro256StarStar : IDeterministicRng
         return unchecked(minInclusive + (long)(value % range));
     }
 
-    internal void AddState(ref Fnv1a64 hasher)
+    internal void WriteState(Persistence.IStateWriter writer)
     {
-        hasher.Add(_s0);
-        hasher.Add(_s1);
-        hasher.Add(_s2);
-        hasher.Add(_s3);
+        writer.Add(_s0);
+        writer.Add(_s1);
+        writer.Add(_s2);
+        writer.Add(_s3);
+    }
+
+    internal void SetState(ulong s0, ulong s1, ulong s2, ulong s3)
+    {
+        if ((s0 | s1 | s2 | s3) == 0)
+            throw new ArgumentException("xoshiro256** state must not be all zero.");
+        _s0 = s0;
+        _s1 = s1;
+        _s2 = s2;
+        _s3 = s3;
     }
 }

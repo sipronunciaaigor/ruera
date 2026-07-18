@@ -1,6 +1,7 @@
 using Ruera.Sim.Calendar;
 using Ruera.Sim.Data;
 using Ruera.Sim.Hashing;
+using Ruera.Sim.Persistence;
 using Ruera.Sim.Rng;
 using Ruera.Sim.World;
 
@@ -190,55 +191,117 @@ public sealed class SimState
 
     internal void Report(DayPlanReport report) => _reports.Add(report);
 
-    /// <summary>
-    /// Feeds every piece of state to the hasher in a fixed, documented order.
-    /// State format v3 (RUE-14): economy state included.
-    /// </summary>
+    /// <summary>Feeds the canonical field stream into the state hash (same order as snapshots).</summary>
     public void AddToHash(ref Fnv1a64 hasher)
     {
-        hasher.Add(Seed);
-        hasher.Add(Tick);
-        foreach (var stream in _streams) // StreamIds order: stable by construction
-            stream.AddState(ref hasher);
+        var writer = new HashStateWriter(hasher);
+        WriteTo(writer);
+        hasher = writer.Hasher;
+    }
 
-        hasher.Add(StockpileGrams);
-        hasher.Add(NextVehicleId);
-        hasher.Add(_vehicles.Count);
+    /// <summary>
+    /// THE canonical state serialization, format v3 (RUE-14): the single field
+    /// order feeding both the state hash and snapshot bytes (RUE-8 «writer
+    /// unico»). <see cref="ReadFrom"/> must mirror it exactly.
+    /// </summary>
+    internal void WriteTo(IStateWriter writer)
+    {
+        writer.Add(Seed);
+        writer.Add(Tick);
+        foreach (var stream in _streams) // StreamIds order: stable by construction
+            stream.WriteState(writer);
+
+        writer.Add(StockpileGrams);
+        writer.Add(NextVehicleId);
+        writer.Add(_vehicles.Count);
         foreach (var vehicle in _vehicles) // id order
         {
-            hasher.Add(vehicle.Id);
-            hasher.Add(vehicle.TypeId);
-            hasher.Add(vehicle.CoverageArray.Length);
+            writer.Add(vehicle.Id);
+            writer.Add(vehicle.TypeId);
+            writer.Add(vehicle.CoverageArray.Length);
             foreach (var edgeId in vehicle.CoverageArray) // sorted
-                hasher.Add(edgeId);
+                writer.Add(edgeId);
         }
 
-        hasher.Add(_producers.Length);
+        writer.Add(_producers.Length);
         foreach (var producer in _producers) // id order
         {
-            hasher.Add(producer.Id);
-            hasher.Add(producer.BufferGrams);
-            hasher.Add(producer.LastCollectedTick);
-            hasher.Add(producer.ViolationCount);
-            hasher.Add(producer.HasContract);
+            writer.Add(producer.Id);
+            writer.Add(producer.BufferGrams);
+            writer.Add(producer.LastCollectedTick);
+            writer.Add(producer.ViolationCount);
+            writer.Add(producer.HasContract);
         }
 
-        hasher.Add(CashCents);
-        hasher.Add(WageAccruedCents);
-        hasher.Add(Bankrupt);
-        hasher.Add(NextWorkerId);
-        hasher.Add(_workers.Count);
+        writer.Add(CashCents);
+        writer.Add(WageAccruedCents);
+        writer.Add(Bankrupt);
+        writer.Add(NextWorkerId);
+        writer.Add(_workers.Count);
         foreach (var worker in _workers) // id order
         {
-            hasher.Add(worker.Id);
-            hasher.Add(worker.HiredTick);
+            writer.Add(worker.Id);
+            writer.Add(worker.HiredTick);
         }
 
-        hasher.Add(_pendingDeliveries.Count);
+        writer.Add(_pendingDeliveries.Count);
         foreach (var (deliveryTick, typeId) in _pendingDeliveries) // scheduling order
         {
-            hasher.Add(deliveryTick);
-            hasher.Add(typeId);
+            writer.Add(deliveryTick);
+            writer.Add(typeId);
         }
+    }
+
+    /// <summary>Restores state from canonical snapshot bytes; mirrors <see cref="WriteTo"/>.</summary>
+    internal void ReadFrom(BinaryStateReader reader)
+    {
+        var seed = reader.ReadUInt64();
+        if (seed != Seed)
+            throw new InvalidDataException("Snapshot seed does not match the save header.");
+        Tick = reader.ReadInt64();
+        foreach (var stream in _streams)
+            stream.SetState(reader.ReadUInt64(), reader.ReadUInt64(), reader.ReadUInt64(), reader.ReadUInt64());
+
+        StockpileGrams = reader.ReadInt64();
+        NextVehicleId = reader.ReadInt32();
+        _vehicles.Clear();
+        var vehicleCount = reader.ReadInt32();
+        for (var i = 0; i < vehicleCount; i++)
+        {
+            var id = reader.ReadInt32();
+            var vehicle = new VehicleState(id, Definitions!.Vehicle(reader.ReadString()));
+            var coverageCount = reader.ReadInt32();
+            var coverage = new int[coverageCount];
+            for (var c = 0; c < coverageCount; c++)
+                coverage[c] = reader.ReadInt32();
+            vehicle.SetCoverage(coverage);
+            _vehicles.Add(vehicle);
+        }
+
+        var producerCount = reader.ReadInt32();
+        if (producerCount != _producers.Length)
+            throw new InvalidDataException("Snapshot producers do not match the loaded scenario.");
+        for (var i = 0; i < producerCount; i++)
+        {
+            var producer = Producer(reader.ReadInt32());
+            producer.BufferGrams = reader.ReadInt64();
+            producer.LastCollectedTick = reader.ReadInt64();
+            producer.ViolationCount = reader.ReadInt64();
+            producer.HasContract = reader.ReadBoolean();
+        }
+
+        CashCents = reader.ReadInt64();
+        WageAccruedCents = reader.ReadInt64();
+        Bankrupt = reader.ReadBoolean();
+        NextWorkerId = reader.ReadInt32();
+        _workers.Clear();
+        var workerCount = reader.ReadInt32();
+        for (var i = 0; i < workerCount; i++)
+            _workers.Add(new WorkerState(reader.ReadInt32(), reader.ReadInt64()));
+
+        _pendingDeliveries.Clear();
+        var deliveryCount = reader.ReadInt32();
+        for (var i = 0; i < deliveryCount; i++)
+            _pendingDeliveries.Add((reader.ReadInt64(), reader.ReadString()));
     }
 }
