@@ -160,6 +160,24 @@ Numeri banali per il disco. Se gli snapshot pesassero, si dirada la ritenzione (
 
 **Implicazioni**: RUE-18 implementa il contenitore e estrae il writer canonico unico; `Simulation.Replay` dovrà accettare l'identità di scenario oltre al seed (oggi assume il calendario di default — rilevante anche per RUE-20).
 
+### Moddabilità: vincoli dal giorno uno *(deciso 2026-07-18)*
+
+**Decisione: il modding di contenuti è un requisito architetturale di V1; il modding di codice è rimandato, ma i punti di innesto si proteggono da subito.** Alla Cities: Skylines, il modding è un motore di adozione — e le scelte che lo rendono possibile non si retrofittano.
+
+Già mod-ready per costruzione (da proteggere, non da costruire):
+
+- **Dati, non codice** (sopra): veicoli/rifiuti/archetipi/mappe/scenari sono file esterni — una mod di contenuto è «solo» un altro pacchetto di dati.
+- **Formato mappa come contratto** (§11): qualunque tool di terzi può produrre mappe valide.
+- **Hash dei dati di scenario nei salvataggi** (sopra): le partite moddate restano oneste su save/replay/ghost — contenuto diverso = partita diversa, già oggi.
+- **Pipeline dei sistemi esplicita, id stabili append-only** (wire dei comandi, stream RNG): i punti di innesto per future mod di codice esistono già come seam interni.
+
+Regole dal giorno uno:
+
+1. **Id di contenuto namespaced**: ogni id è `pacchetto:nome` (`base:gerla`, `base:condo-small`). Evita le collisioni tra pacchetti; rinominare dopo romperebbe salvataggi e hash di scenario → si fa subito, finché il contenuto è placeholder.
+2. **Il contenuto «base» è un pacchetto come gli altri**: il loader accetterà N pacchetti con ordine di carico e override espliciti (manifest, versioni, dipendenze: investigation dedicata; l'hash di scenario diventa hash dell'insieme dei pacchetti + ordine).
+3. **Niente logica nei dati in V1**: i pacchetti dichiarano parametri, mai codice. Le mod di codice (sistemi custom, patching) sono materia post-V1/Ruera 2: dentro la sim richiederebbero le stesse regole di determinismo di §2, non esponibili in sicurezza oggi.
+4. **UI e rendering moddabili lato Godot**: skin, icone, viste non toccano sim né determinismo; si valutano quando esiste la UI (RUE-17+).
+
 ---
 
 ## 3. Produttori e rifiuti
