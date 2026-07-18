@@ -65,6 +65,8 @@ public sealed class StreetGraph
 
     public IReadOnlyList<MapProducer> Producers => _producers;
 
+    public bool HasEdge(int id) => Array.BinarySearch(_edgeIds, id) >= 0;
+
     public MapNode Node(int id) => _nodes[Find(_nodeIds, id, "node")];
 
     public MapEdge Edge(int id) => _edges[Find(_edgeIds, id, "edge")];

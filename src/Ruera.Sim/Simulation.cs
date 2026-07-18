@@ -1,6 +1,9 @@
 using Ruera.Sim.Calendar;
 using Ruera.Sim.Commands;
+using Ruera.Sim.Data;
 using Ruera.Sim.Hashing;
+using Ruera.Sim.Systems;
+using Ruera.Sim.World;
 
 namespace Ruera.Sim;
 
@@ -11,6 +14,16 @@ namespace Ruera.Sim;
 /// </summary>
 public sealed class Simulation
 {
+    // The fixed in-tick system order (DESIGN.md §2 «Risoluzione al tick», RUE-6):
+    // waste production -> day plan -> closing checks. Calendar/events, processing
+    // and sales slot into this array as they land. Plain array, run in order.
+    private static readonly ISimSystem[] SystemPipeline =
+    [
+        new WasteProductionSystem(),
+        new DayPlanSystem(),
+        new ViolationSystem(),
+    ];
+
     private readonly List<CommandLogEntry> _pending = [];
     private readonly List<CommandLogEntry> _log = [];
 
@@ -18,14 +31,24 @@ public sealed class Simulation
 
     public SimCalendar Calendar { get; }
 
-    /// <summary>Engine with the vertical-slice default calendar (Milano, tick 0 = 1880-01-01).</summary>
-    public Simulation(ulong seed) : this(seed, SimCalendar.Milano1880())
+    /// <summary>Worldless engine with the vertical-slice default calendar (tick 0 = 1880-01-01).</summary>
+    public Simulation(ulong seed) : this(seed, SimCalendar.Milano1880(), null, null)
     {
     }
 
-    public Simulation(ulong seed, SimCalendar calendar)
+    public Simulation(ulong seed, SimCalendar calendar) : this(seed, calendar, null, null)
     {
-        State = new SimState(seed);
+    }
+
+    /// <summary>Engine over a loaded world (map + entity definitions), default calendar.</summary>
+    public Simulation(ulong seed, StreetGraph graph, DefinitionRegistry definitions)
+        : this(seed, SimCalendar.Milano1880(), graph, definitions)
+    {
+    }
+
+    public Simulation(ulong seed, SimCalendar calendar, StreetGraph? graph, DefinitionRegistry? definitions)
+    {
+        State = new SimState(seed, graph, definitions);
         Calendar = calendar;
     }
 
@@ -68,14 +91,22 @@ public sealed class Simulation
     /// recorded commands were validated against states a fresh sim does not
     /// have yet; application-time validation remains the deterministic authority.
     /// </summary>
-    public static Simulation Replay(ulong seed, IEnumerable<CommandLogEntry> log, int ticks)
+    public static Simulation Replay(ulong seed, IEnumerable<CommandLogEntry> log, int ticks,
+        StreetGraph? graph = null, DefinitionRegistry? definitions = null)
     {
-        var sim = new Simulation(seed);
+        var sim = new Simulation(seed, SimCalendar.Milano1880(), graph, definitions);
         foreach (var entry in log)
             sim.ScheduleCore(entry.Day, entry.Command);
         sim.Advance(ticks);
         return sim;
     }
+
+    /// <summary>Pessimistic tour estimate for a vehicle's painted coverage (DESIGN.md §4).</summary>
+    public Minutes PreviewTour(int vehicleId) => DayPlanSystem.Preview(State, State.Vehicle(vehicleId));
+
+    /// <summary>Estimate for a tentative coverage still being painted in the UI.</summary>
+    public Minutes PreviewTour(int vehicleId, IReadOnlyList<int> tentativeCoverage) =>
+        DayPlanSystem.Preview(State, State.Vehicle(vehicleId).Definition, tentativeCoverage);
 
     public void Advance(int ticks)
     {
@@ -95,11 +126,10 @@ public sealed class Simulation
 
     private void AdvanceOneTick()
     {
-        // Fixed in-tick order (DESIGN.md §2 «Risoluzione al tick»): commands at
-        // tick open, then systems in fixed declaration order as they land
-        // (calendar/events, waste production, day plan, processing, sales,
-        // closing accounting). Single-threaded inside the tick by rule.
-        ApplyDueCommands();
+        State.BeginTick();
+        ApplyDueCommands(); // commands at tick open (RUE-6)
+        foreach (var system in SystemPipeline)
+            system.Run(State, Calendar);
         State.Tick++; // tick close: effects are materialized, the day is resolved
     }
 

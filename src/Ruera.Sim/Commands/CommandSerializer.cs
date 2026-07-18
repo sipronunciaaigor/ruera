@@ -53,6 +53,8 @@ public static class CommandSerializer
             {
                 CommandTypeId.NoOp => NoOpCommand.ReadPayload(reader),
                 CommandTypeId.DrawRandom => DrawRandomCommand.ReadPayload(reader),
+                CommandTypeId.AddVehicle => AddVehicleCommand.ReadPayload(reader),
+                CommandTypeId.SetCoverage => SetCoverageCommand.ReadPayload(reader),
                 _ => throw new InvalidDataException(string.Create(CultureInfo.InvariantCulture,
                     $"Unknown command type id {(ushort)typeId}.")),
             };

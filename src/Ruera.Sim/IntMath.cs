@@ -32,6 +32,12 @@ public static class IntMath
         return quotient;
     }
 
+    /// <summary>
+    /// Division rounding toward positive infinity: DivCeil(7, 2) = 4. The
+    /// rounding of cost estimates: estimates are pessimistic (DESIGN.md §4).
+    /// </summary>
+    public static long DivCeil(long dividend, long divisor) => -DivFloor(-dividend, divisor);
+
     /// <summary>Division rounding half away from zero: DivRound(5, 2) = 3, DivRound(-5, 2) = -3.</summary>
     public static long DivRound(long dividend, long divisor)
     {
