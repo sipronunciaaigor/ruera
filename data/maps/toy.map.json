@@ -1,6 +1,6 @@
 {
   "formatVersion": 1,
-  "id": "toy",
+  "id": "base:toy",
   "name": "Toy 4x3 grid for engine development",
   "nodes": [
     { "id": 1, "x": 0, "y": 0 },
@@ -39,11 +39,11 @@
     { "id": 1, "node": 1 }
   ],
   "producers": [
-    { "id": 1, "edge": 2, "archetype": "condo-small" },
-    { "id": 2, "edge": 5, "archetype": "condo-large" },
-    { "id": 3, "edge": 6, "archetype": "shop" },
-    { "id": 4, "edge": 8, "archetype": "condo-small" },
-    { "id": 5, "edge": 16, "archetype": "factory" },
-    { "id": 6, "edge": 11, "archetype": "shop" }
+    { "id": 1, "edge": 2, "archetype": "base:condo-small" },
+    { "id": 2, "edge": 5, "archetype": "base:condo-large" },
+    { "id": 3, "edge": 6, "archetype": "base:shop" },
+    { "id": 4, "edge": 8, "archetype": "base:condo-small" },
+    { "id": 5, "edge": 16, "archetype": "base:factory" },
+    { "id": 6, "edge": 11, "archetype": "base:shop" }
   ]
 }

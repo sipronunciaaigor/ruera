@@ -17,8 +17,8 @@ public class SaveLoadTests
     private static Simulation ScriptedSim(ulong seed = 2026)
     {
         var sim = new Simulation(seed, Graph, Definitions);
-        sim.Submit(new AddVehicleCommand("navazza"));
-        sim.Submit(new BuyVehicleCommand("gerla"));
+        sim.Submit(new AddVehicleCommand("base:navazza"));
+        sim.Submit(new BuyVehicleCommand("base:gerla"));
         sim.Submit(new HireWorkerCommand());
         sim.Submit(new SignContractCommand(1));
         sim.Advance(1);

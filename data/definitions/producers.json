@@ -2,53 +2,53 @@
   "formatVersion": 1,
   "archetypes": [
     {
-      "id": "condo-small",
+      "id": "base:condo-small",
       "name": "Condominio piccolo",
       "bufferGrams": 120000,
       "maxSanitaryIntervalTicks": 7,
       "contractCentsPerMonth": 3000,
       "production": [
         {
-          "waste": "mixed",
+          "waste": "base:mixed",
           "gramsPerTick": 12000
         }
       ]
     },
     {
-      "id": "condo-large",
+      "id": "base:condo-large",
       "name": "Condominio grande (52 famiglie)",
       "bufferGrams": 300000,
       "maxSanitaryIntervalTicks": 2,
       "contractCentsPerMonth": 12000,
       "production": [
         {
-          "waste": "mixed",
+          "waste": "base:mixed",
           "gramsPerTick": 80000
         }
       ]
     },
     {
-      "id": "shop",
+      "id": "base:shop",
       "name": "Bottega",
       "bufferGrams": 60000,
       "maxSanitaryIntervalTicks": 7,
       "contractCentsPerMonth": 1500,
       "production": [
         {
-          "waste": "mixed",
+          "waste": "base:mixed",
           "gramsPerTick": 5000
         }
       ]
     },
     {
-      "id": "factory",
+      "id": "base:factory",
       "name": "Opificio",
       "bufferGrams": 1200000,
       "maxSanitaryIntervalTicks": 3,
       "contractCentsPerMonth": 20000,
       "production": [
         {
-          "waste": "mixed",
+          "waste": "base:mixed",
           "gramsPerTick": 150000
         }
       ]

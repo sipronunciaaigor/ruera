@@ -13,11 +13,11 @@ public class StreetGraphTests
 
     private const string MinimalMapJson = """
         {
-          "formatVersion": 1, "id": "mini", "name": "Mini",
+          "formatVersion": 1, "id": "base:mini", "name": "Mini",
           "nodes": [ { "id": 1, "x": 0, "y": 0 }, { "id": 2, "x": 100, "y": 0 } ],
           "edges": [ { "id": 1, "from": 1, "to": 2, "lengthMeters": 100 } ],
           "depots": [ { "id": 1, "node": 1 } ],
-          "producers": [ { "id": 1, "edge": 1, "archetype": "shop" } ]
+          "producers": [ { "id": 1, "edge": 1, "archetype": "base:shop" } ]
         }
         """;
 
@@ -28,7 +28,7 @@ public class StreetGraphTests
     {
         var graph = MapLoader.LoadFromFile(ToyMapPath, SliceDefinitions);
 
-        Assert.Equal("toy", graph.MapId);
+        Assert.Equal("base:toy", graph.MapId);
         Assert.Equal(12, graph.Nodes.Count);
         Assert.Equal(17, graph.Edges.Count);
         Assert.Equal(6, graph.Producers.Count);
@@ -42,7 +42,7 @@ public class StreetGraphTests
 
         Assert.Equal(1, graph.Depot(1).Node);
         Assert.Equal(16, graph.Producer(5).Edge);
-        Assert.Equal("factory", graph.Producer(5).Archetype);
+        Assert.Equal("base:factory", graph.Producer(5).Archetype);
         Assert.Equal(330, graph.Edge(3).Length.Value);
         Assert.Throws<KeyNotFoundException>(() => graph.Producer(99));
     }
@@ -75,6 +75,7 @@ public class StreetGraphTests
     [InlineData("\"node\": 1", "\"node\": 7", "unknown node 7")]
     [InlineData("\"edge\": 1,", "\"edge\": 5,", "unknown edge 5")]
     [InlineData("\"formatVersion\": 1,", "\"formatVersion\": 9,", "unsupported formatVersion 9")]
+    [InlineData("\"id\": \"base:mini\"", "\"id\": \"mini\"", "package:name")]
     public void InvalidMaps_AreRejectedWithClearErrors(string oldText, string newText, string expectedError)
     {
         var exception = Assert.Throws<MapLoadException>(() => MapLoader.Load(Mutate(oldText, newText)));
@@ -97,10 +98,10 @@ public class StreetGraphTests
     [Fact]
     public void UnknownArchetype_IsRejectedWhenDefinitionsProvided()
     {
-        var badArchetype = Mutate("\"archetype\": \"shop\"", "\"archetype\": \"palazzo\"");
+        var badArchetype = Mutate("\"archetype\": \"base:shop\"", "\"archetype\": \"base:palazzo\"");
 
         Assert.NotNull(MapLoader.Load(badArchetype)); // without definitions: structural check only
         var exception = Assert.Throws<MapLoadException>(() => MapLoader.Load(badArchetype, SliceDefinitions));
-        Assert.Contains("palazzo", exception.Message);
+        Assert.Contains("base:palazzo", exception.Message);
     }
 }

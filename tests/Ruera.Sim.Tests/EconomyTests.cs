@@ -66,7 +66,7 @@ public class EconomyTests
     public void PurchasedVehicle_PaysAtOrder_ArrivesAtDeliveryTick()
     {
         var sim = NewSim();
-        sim.Submit(new BuyVehicleCommand("navazza")); // 60 000 cents, 5-tick delivery
+        sim.Submit(new BuyVehicleCommand("base:navazza")); // 60 000 cents, 5-tick delivery
 
         sim.Advance(1);
         Assert.Equal(440_000, sim.State.CashCents); // paid at the order tick
@@ -78,7 +78,7 @@ public class EconomyTests
 
         sim.Advance(1); // tick 5: delivered
         var vehicle = Assert.Single(sim.State.Vehicles);
-        Assert.Equal("navazza", vehicle.TypeId);
+        Assert.Equal("base:navazza", vehicle.TypeId);
         Assert.Empty(sim.State.PendingDeliveries);
     }
 
@@ -87,7 +87,7 @@ public class EconomyTests
     {
         var sim = NewSim();
 
-        Assert.Throws<ArgumentException>(() => sim.Submit(new BuyVehicleCommand("camion"))); // 1925 tech in 1880
+        Assert.Throws<ArgumentException>(() => sim.Submit(new BuyVehicleCommand("base:camion"))); // 1925 tech in 1880
     }
 
     [Fact]
@@ -95,7 +95,7 @@ public class EconomyTests
     {
         var sim = NewSim();
         for (var i = 0; i < 3; i++)
-            sim.Submit(new AddVehicleCommand("navazza")); // 3 vehicles x crew 2 = 6 needed
+            sim.Submit(new AddVehicleCommand("base:navazza")); // 3 vehicles x crew 2 = 6 needed
         sim.Submit(new HireWorkerCommand());
         sim.Submit(new HireWorkerCommand()); // workers 5-6, in training until tick 10
         sim.Advance(1);
@@ -128,7 +128,7 @@ public class EconomyTests
     {
         CommandLogEntry[] entries =
         [
-            new(0, new BuyVehicleCommand("navazza")),
+            new(0, new BuyVehicleCommand("base:navazza")),
             new(0, new HireWorkerCommand()),
             new(4, new SignContractCommand(1)),
         ];
@@ -137,7 +137,7 @@ public class EconomyTests
         static Simulation Script(ulong seed)
         {
             var sim = new Simulation(seed, Graph, Definitions);
-            sim.Submit(new BuyVehicleCommand("navazza"));
+            sim.Submit(new BuyVehicleCommand("base:navazza"));
             sim.Submit(new HireWorkerCommand());
             sim.Submit(new SignContractCommand(1));
             sim.Advance(6); // delivery lands at tick 5
