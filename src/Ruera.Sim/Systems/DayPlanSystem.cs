@@ -22,10 +22,20 @@ internal sealed class DayPlanSystem : ISimSystem
         if (state.Graph is null || !calendar.IsWorkingDay(state.Tick))
             return; // production continues on rest days; collection does not
 
+        // Crew gating: vehicles staff up in id order from productive workers
+        // only — trainees cost wages but crew nothing (DESIGN.md §2).
+        var crewAvailable = 0;
+        foreach (var worker in state.Workers)
+        {
+            if (state.Tick - worker.HiredTick >= EconomySystem.TrainingTicks)
+                crewAvailable++;
+        }
+
         foreach (var vehicle in state.Vehicles) // id order: deterministic
         {
-            if (vehicle.CoverageArray.Length == 0)
+            if (vehicle.CoverageArray.Length == 0 || vehicle.Definition.Crew > crewAvailable)
                 continue;
+            crewAvailable -= vehicle.Definition.Crew;
             ExecuteTour(state, vehicle);
         }
     }

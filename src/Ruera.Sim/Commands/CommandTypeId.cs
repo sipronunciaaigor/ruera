@@ -10,4 +10,7 @@ public enum CommandTypeId : ushort
     DrawRandom = 2,
     AddVehicle = 3,
     SetCoverage = 4,
+    BuyVehicle = 5,
+    HireWorker = 6,
+    SignContract = 7,
 }
