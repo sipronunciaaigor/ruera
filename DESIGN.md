@@ -214,6 +214,8 @@ Determinismo garantito: gli effetti si applicano al confine del tick nello step 
 
 **Rapporto con lo script di crescita città (§15.1)**: chiarito — la crescita **non è un secondo sistema**, è una famiglia di effetti di timeline (`GrowWorld`) sullo stesso meccanismo. Il generatore (§11) produrrà scenari — cioè mappe *più* timeline di crescita — non solo mappe. Resta aperto *cosa* generare (le traiettorie), non *come* rappresentarle.
 
+**Bounds temporali e fine opzionale** *(2026-07-19)*: lo scenario dichiara l'inizio (`calendar.epoch`) e una **fine opzionale**. La fine è una condizione di scenario (obiettivi §12), non un vincolo del motore: assente = **sandbox infinita** di prima classe (si continua a giocare dopo aver "vinto"). Il motore è comunque *year-agnostic* (tick = giorni int64; costo per-tick costante con l'età della partita) e regge qualunque durata realistica; l'unico limite strutturale è l'anno `int32` di `SimDate`. Sotto il cofano si impone un **cap artificiale al 31 dicembre 12345** (oltre, `Advance` rifiuta): assurdamente lontano per il gioco, protegge i contatori cumulativi (§15.10 → `Int128`) e rende il limite esplicito invece che accidentale.
+
 **Non blocca la slice**: con un solo scenario `base:milano-1880` la timeline può essere vuota o minima (una-due norme igieniche). Implementazione operativa in un ticket dedicato quando arriva il secondo scenario o il primo evento storico vero; l'`onCondition` si concretizza solo se un evento della slice lo richiede.
 
 ---
