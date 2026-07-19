@@ -23,6 +23,9 @@ public sealed class VehicleState
 
     public string TypeId => Definition.Id;
 
+    /// <summary>Broken down until this tick (exclusive): the day plan skips it (RUE-32). 0 = in service.</summary>
+    public long OutOfServiceUntilTick { get; internal set; }
+
     /// <summary>Covered street edges, sorted ascending (canonical form).</summary>
     public IReadOnlyList<int> CoverageEdges => _coverageEdges;
 

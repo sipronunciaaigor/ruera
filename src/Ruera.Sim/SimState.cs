@@ -63,12 +63,17 @@ public sealed class SimState
 
     public DefinitionRegistry? Definitions { get; }
 
-    public SimState(ulong seed) : this(seed, SimCalendar.Milano1880(), null, null)
+    /// <summary>Event configuration; null = events disabled (scenario config, like the calendar).</summary>
+    public EventSettings? Events { get; }
+
+    public SimState(ulong seed) : this(seed, SimCalendar.Milano1880(), null, null, null)
     {
     }
 
-    public SimState(ulong seed, SimCalendar calendar, StreetGraph? graph, DefinitionRegistry? definitions)
+    public SimState(ulong seed, SimCalendar calendar, StreetGraph? graph, DefinitionRegistry? definitions,
+        EventSettings? events)
     {
+        Events = events;
         if (graph is not null && definitions is not null)
         {
             _producers = [.. graph.Producers.Select(p =>
@@ -272,6 +277,7 @@ public sealed class SimState
             writer.Add(vehicle.CoverageArray.Length);
             foreach (var edgeId in vehicle.CoverageArray) // sorted
                 writer.Add(edgeId);
+            writer.Add(vehicle.OutOfServiceUntilTick);
         }
 
         writer.Add(_producers.Length);
@@ -341,6 +347,7 @@ public sealed class SimState
             for (var c = 0; c < coverageCount; c++)
                 coverage[c] = reader.ReadInt32();
             vehicle.SetCoverage(coverage);
+            vehicle.OutOfServiceUntilTick = reader.ReadInt64();
             _vehicles.Add(vehicle);
         }
 

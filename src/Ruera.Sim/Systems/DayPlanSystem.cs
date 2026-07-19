@@ -48,6 +48,9 @@ internal sealed class DayPlanSystem : ISimSystem
 
         foreach (var vehicle in state.Vehicles) // id order: deterministic
         {
+            if (state.Tick < vehicle.OutOfServiceUntilTick)
+                continue; // in the workshop (RUE-32)
+
             // Direct painted coverage is the override (DESIGN.md §4);
             // otherwise the union of today's assigned lines, in line id order.
             int[] coverage;
