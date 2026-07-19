@@ -24,8 +24,8 @@ public class DefinitionTests
         }
         """;
 
-    private static string VehiclesJson(string vehicleEntries) => $$"""
-        { "formatVersion": 1, "vehicles": [ {{vehicleEntries}} ] }
+    private static string CarriersJson(string carrierEntries) => $$"""
+        { "formatVersion": 1, "carriers": [ {{carrierEntries}} ] }
         """;
 
     private const string GerlaEntry = """
@@ -41,9 +41,9 @@ public class DefinitionTests
     {
         var registry = DefinitionLoader.LoadFromDirectory(SliceDataDirectory);
 
-        Assert.Equal(5, registry.Vehicles.Count);
-        Assert.Equal(25_000, registry.Vehicle("base:gerla").CapacityGrams);
-        Assert.Equal(1925, registry.Vehicle("base:camion").AvailableFromYear);
+        Assert.Equal(5, registry.Carriers.Count);
+        Assert.Equal(25_000, registry.Carrier("base:gerla").CapacityGrams);
+        Assert.Equal(1925, registry.Carrier("base:camion").AvailableFromYear);
         Assert.Equal(2, registry.Archetype("base:condo-large").MaxSanitaryIntervalTicks);
 
         // The toy map (RUE-9) references exactly these archetype ids.
@@ -52,9 +52,9 @@ public class DefinitionTests
     }
 
     [Fact]
-    public void NewVehicleType_IsAddedViaDataFileOnly()
+    public void NewCarrierType_IsAddedViaDataFileOnly()
     {
-        // AC RUE-12: no sim code changes — just another entry in vehicles.json.
+        // AC RUE-12: no sim code changes — just another entry in carriers.json.
         var directory = Directory.CreateTempSubdirectory("ruera-defs-").FullName;
         try
         {
@@ -65,15 +65,15 @@ public class DefinitionTests
                   "purchaseCents": 2500000, "maintenanceCentsPerDay": 900, "crew": 2, "availableFromYear": 1955
                 }
                 """;
-            File.WriteAllText(Path.Combine(directory, "vehicles.json"), VehiclesJson(GerlaEntry + "," + compactorEntry));
+            File.WriteAllText(Path.Combine(directory, "carriers.json"), CarriersJson(GerlaEntry + "," + compactorEntry));
             File.WriteAllText(Path.Combine(directory, "waste.json"), MinimalWasteJson);
             File.WriteAllText(Path.Combine(directory, "producers.json"), MinimalProducersJson);
 
             var registry = DefinitionLoader.LoadFromDirectory(directory);
 
-            var compactor = registry.Vehicle("base:autocompattatore");
+            var compactor = registry.Carrier("base:autocompattatore");
             Assert.Equal(8_000_000, compactor.Capacity.Value);
-            Assert.Equal(2, registry.Vehicles.Count);
+            Assert.Equal(2, registry.Carriers.Count);
         }
         finally
         {
@@ -85,7 +85,7 @@ public class DefinitionTests
     public void EraGating_UsesAvailabilityYearAndRndAnticipation()
     {
         var registry = DefinitionLoader.LoadFromDirectory(SliceDataDirectory);
-        var camion = registry.Vehicle("base:camion"); // available from 1925
+        var camion = registry.Carrier("base:camion"); // available from 1925
 
         Assert.False(camion.IsAvailable(1924));
         Assert.True(camion.IsAvailable(1925));
@@ -96,12 +96,12 @@ public class DefinitionTests
     [Fact]
     public void UnknownField_FailsWithClearError()
     {
-        var badVehicle = GerlaEntry.Replace("\"capacityGrams\"", "\"capacityGramz\"");
+        var badCarrier = GerlaEntry.Replace("\"capacityGrams\"", "\"capacityGramz\"");
 
         var exception = Assert.Throws<DefinitionLoadException>(() =>
-            DefinitionLoader.Load(VehiclesJson(badVehicle), MinimalWasteJson, MinimalProducersJson));
+            DefinitionLoader.Load(CarriersJson(badCarrier), MinimalWasteJson, MinimalProducersJson));
 
-        Assert.Contains("vehicles.json", exception.Message);
+        Assert.Contains("carriers.json", exception.Message);
     }
 
     [Fact]
@@ -110,9 +110,9 @@ public class DefinitionTests
         var withoutCapacity = GerlaEntry.Replace("\"capacityGrams\": 25000,", "");
 
         var exception = Assert.Throws<DefinitionLoadException>(() =>
-            DefinitionLoader.Load(VehiclesJson(withoutCapacity), MinimalWasteJson, MinimalProducersJson));
+            DefinitionLoader.Load(CarriersJson(withoutCapacity), MinimalWasteJson, MinimalProducersJson));
 
-        Assert.Contains("vehicles.json", exception.Message);
+        Assert.Contains("carriers.json", exception.Message);
     }
 
     [Fact]
@@ -121,7 +121,7 @@ public class DefinitionTests
         var zeroCapacity = GerlaEntry.Replace("\"capacityGrams\": 25000", "\"capacityGrams\": 0");
 
         var exception = Assert.Throws<DefinitionLoadException>(() =>
-            DefinitionLoader.Load(VehiclesJson(zeroCapacity), MinimalWasteJson, MinimalProducersJson));
+            DefinitionLoader.Load(CarriersJson(zeroCapacity), MinimalWasteJson, MinimalProducersJson));
 
         Assert.Contains("base:gerla", exception.Message);
         Assert.Contains("capacityGrams", exception.Message);
@@ -131,7 +131,7 @@ public class DefinitionTests
     public void DuplicateId_Fails()
     {
         var exception = Assert.Throws<DefinitionLoadException>(() =>
-            DefinitionLoader.Load(VehiclesJson(GerlaEntry + "," + GerlaEntry), MinimalWasteJson, MinimalProducersJson));
+            DefinitionLoader.Load(CarriersJson(GerlaEntry + "," + GerlaEntry), MinimalWasteJson, MinimalProducersJson));
 
         Assert.Contains("duplicate id 'base:gerla'", exception.Message);
     }
@@ -142,7 +142,7 @@ public class DefinitionTests
         var badProducers = MinimalProducersJson.Replace("\"waste\": \"base:mixed\"", "\"waste\": \"base:plastica\"");
 
         var exception = Assert.Throws<DefinitionLoadException>(() =>
-            DefinitionLoader.Load(VehiclesJson(GerlaEntry), MinimalWasteJson, badProducers));
+            DefinitionLoader.Load(CarriersJson(GerlaEntry), MinimalWasteJson, badProducers));
 
         Assert.Contains("base:plastica", exception.Message);
         Assert.Contains("base:condo-small", exception.Message);
@@ -155,7 +155,7 @@ public class DefinitionTests
         var bare = GerlaEntry.Replace("base:gerla", "gerla");
 
         var exception = Assert.Throws<DefinitionLoadException>(() =>
-            DefinitionLoader.Load(VehiclesJson(bare), MinimalWasteJson, MinimalProducersJson));
+            DefinitionLoader.Load(CarriersJson(bare), MinimalWasteJson, MinimalProducersJson));
 
         Assert.Contains("package:name", exception.Message);
     }
@@ -166,7 +166,7 @@ public class DefinitionTests
         var futureVersion = MinimalWasteJson.Replace("\"formatVersion\": 1", "\"formatVersion\": 99");
 
         var exception = Assert.Throws<DefinitionLoadException>(() =>
-            DefinitionLoader.Load(VehiclesJson(GerlaEntry), futureVersion, MinimalProducersJson));
+            DefinitionLoader.Load(CarriersJson(GerlaEntry), futureVersion, MinimalProducersJson));
 
         Assert.Contains("formatVersion 99", exception.Message);
     }
@@ -174,9 +174,9 @@ public class DefinitionTests
     [Fact]
     public void UnknownId_LookupFailsWithKnownIdsListed()
     {
-        var registry = DefinitionLoader.Load(VehiclesJson(GerlaEntry), MinimalWasteJson, MinimalProducersJson);
+        var registry = DefinitionLoader.Load(CarriersJson(GerlaEntry), MinimalWasteJson, MinimalProducersJson);
 
-        var exception = Assert.Throws<KeyNotFoundException>(() => registry.Vehicle("base:zeppelin"));
+        var exception = Assert.Throws<KeyNotFoundException>(() => registry.Carrier("base:zeppelin"));
 
         Assert.Contains("base:zeppelin", exception.Message);
         Assert.Contains("base:gerla", exception.Message);
@@ -187,7 +187,7 @@ public class DefinitionTests
     {
         var registry = DefinitionLoader.LoadFromDirectory(SliceDataDirectory);
 
-        var ids = registry.Vehicles.Select(v => v.Id).ToArray();
+        var ids = registry.Carriers.Select(v => v.Id).ToArray();
         var sorted = ids.OrderBy(id => id, StringComparer.Ordinal).ToArray();
         Assert.Equal(sorted, ids);
     }

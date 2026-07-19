@@ -63,31 +63,31 @@ public class EconomyTests
     }
 
     [Fact]
-    public void PurchasedVehicle_PaysAtOrder_ArrivesAtDeliveryTick()
+    public void PurchasedCarrier_PaysAtOrder_ArrivesAtDeliveryTick()
     {
         var sim = NewSim();
-        sim.Submit(new BuyVehicleCommand("base:navazza")); // 60 000 cents, 5-tick delivery
+        sim.Submit(new BuyCarrierCommand("base:navazza")); // 60 000 cents, 5-tick delivery
 
         sim.Advance(1);
         Assert.Equal(440_000, sim.State.CashCents); // paid at the order tick
-        Assert.Empty(sim.State.Vehicles);
+        Assert.Empty(sim.State.Carriers);
         Assert.Single(sim.State.PendingDeliveries);
 
         sim.Advance(4); // ticks 1-4: still in transit
-        Assert.Empty(sim.State.Vehicles);
+        Assert.Empty(sim.State.Carriers);
 
         sim.Advance(1); // tick 5: delivered
-        var vehicle = Assert.Single(sim.State.Vehicles);
-        Assert.Equal("base:navazza", vehicle.TypeId);
+        var carrier = Assert.Single(sim.State.Carriers);
+        Assert.Equal("base:navazza", carrier.TypeId);
         Assert.Empty(sim.State.PendingDeliveries);
     }
 
     [Fact]
-    public void EraGating_BlocksVehiclesFromTheFuture()
+    public void EraGating_BlocksCarriersFromTheFuture()
     {
         var sim = NewSim();
 
-        Assert.Throws<ArgumentException>(() => sim.Submit(new BuyVehicleCommand("base:camion"))); // 1925 tech in 1880
+        Assert.Throws<ArgumentException>(() => sim.Submit(new BuyCarrierCommand("base:camion"))); // 1925 tech in 1880
     }
 
     [Fact]
@@ -95,7 +95,7 @@ public class EconomyTests
     {
         var sim = NewSim();
         for (var i = 0; i < 3; i++)
-            sim.Submit(new AddVehicleCommand("base:navazza")); // 3 vehicles x crew 2 = 6 needed
+            sim.Submit(new AddCarrierCommand("base:navazza")); // 3 carriers x crew 2 = 6 needed
         sim.Submit(new HireWorkerCommand());
         sim.Submit(new HireWorkerCommand()); // workers 5-6, in training until tick 10
         sim.Advance(1);
@@ -103,7 +103,7 @@ public class EconomyTests
         sim.Submit(new SetCoverageCommand(2, [5]));
         sim.Submit(new SetCoverageCommand(3, [8]));
 
-        sim.Advance(1); // Friday: only 4 productive workers -> vehicles 1 and 2 operate
+        sim.Advance(1); // Friday: only 4 productive workers -> carriers 1 and 2 operate
         Assert.Equal(2, sim.State.LastDayReports.Count);
 
         sim.Advance(10); // through tick 11 (Monday): trainees productive from tick 10
@@ -128,7 +128,7 @@ public class EconomyTests
     {
         CommandLogEntry[] entries =
         [
-            new(0, new BuyVehicleCommand("base:navazza")),
+            new(0, new BuyCarrierCommand("base:navazza")),
             new(0, new HireWorkerCommand()),
             new(4, new SignContractCommand(1)),
         ];
@@ -137,7 +137,7 @@ public class EconomyTests
         static Simulation Script(ulong seed)
         {
             var sim = new Simulation(seed, Graph, Definitions);
-            sim.Submit(new BuyVehicleCommand("base:navazza"));
+            sim.Submit(new BuyCarrierCommand("base:navazza"));
             sim.Submit(new HireWorkerCommand());
             sim.Submit(new SignContractCommand(1));
             sim.Advance(6); // delivery lands at tick 5

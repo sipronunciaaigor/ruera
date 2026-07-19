@@ -103,12 +103,12 @@ public sealed class Simulation
         return sim;
     }
 
-    /// <summary>Pessimistic tour estimate for a vehicle's painted coverage (DESIGN.md §4).</summary>
-    public Minutes PreviewTour(int vehicleId) => DayPlanSystem.Preview(State, State.Vehicle(vehicleId));
+    /// <summary>Pessimistic tour estimate for a carrier's painted coverage (DESIGN.md §4).</summary>
+    public Minutes PreviewTour(int carrierId) => DayPlanSystem.Preview(State, State.Carrier(carrierId));
 
     /// <summary>Estimate for a tentative coverage still being painted in the UI.</summary>
-    public Minutes PreviewTour(int vehicleId, IReadOnlyList<int> tentativeCoverage) =>
-        DayPlanSystem.Preview(State, State.Vehicle(vehicleId).Definition, tentativeCoverage);
+    public Minutes PreviewTour(int carrierId, IReadOnlyList<int> tentativeCoverage) =>
+        DayPlanSystem.Preview(State, State.Carrier(carrierId).Definition, tentativeCoverage);
 
     public void Advance(int ticks)
     {

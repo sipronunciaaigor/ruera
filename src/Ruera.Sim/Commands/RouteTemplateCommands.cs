@@ -80,7 +80,7 @@ public sealed record UpdateRouteTemplateCommand(int TemplateId, string Name, int
     }
 }
 
-/// <summary>Deletes a service line; assigned vehicles simply lose it.</summary>
+/// <summary>Deletes a service line; assigned carriers simply lose it.</summary>
 public sealed record DeleteRouteTemplateCommand(int TemplateId) : SimCommand
 {
     public override CommandTypeId TypeId => CommandTypeId.DeleteRouteTemplate;
@@ -97,13 +97,13 @@ public sealed record DeleteRouteTemplateCommand(int TemplateId) : SimCommand
     internal static DeleteRouteTemplateCommand ReadPayload(BinaryReader reader) => new(reader.ReadInt32());
 }
 
-/// <summary>Replaces the set of vehicles running a service line ("camion 3 e 7").</summary>
-public sealed record SetTemplateVehiclesCommand(int TemplateId, int[] VehicleIds) : SimCommand
+/// <summary>Replaces the set of carriers running a service line ("camion 3 e 7").</summary>
+public sealed record SetTemplateCarriersCommand(int TemplateId, int[] CarrierIds) : SimCommand
 {
-    public override CommandTypeId TypeId => CommandTypeId.SetTemplateVehicles;
+    public override CommandTypeId TypeId => CommandTypeId.SetTemplateCarriers;
 
-    public bool Equals(SetTemplateVehiclesCommand? other) =>
-        other is not null && TemplateId == other.TemplateId && VehicleIds.AsSpan().SequenceEqual(other.VehicleIds);
+    public bool Equals(SetTemplateCarriersCommand? other) =>
+        other is not null && TemplateId == other.TemplateId && CarrierIds.AsSpan().SequenceEqual(other.CarrierIds);
 
     public override int GetHashCode() => TemplateId;
 
@@ -111,33 +111,33 @@ public sealed record SetTemplateVehiclesCommand(int TemplateId, int[] VehicleIds
     {
         if (!state.TryGetTemplate(TemplateId, out _))
             return CommandValidation.Invalid(string.Create(CultureInfo.InvariantCulture, $"Unknown route template {TemplateId}."));
-        foreach (var vehicleId in VehicleIds)
+        foreach (var carrierId in CarrierIds)
         {
-            if (!state.TryGetVehicle(vehicleId, out _))
-                return CommandValidation.Invalid(string.Create(CultureInfo.InvariantCulture, $"Unknown vehicle {vehicleId}."));
+            if (!state.TryGetCarrier(carrierId, out _))
+                return CommandValidation.Invalid(string.Create(CultureInfo.InvariantCulture, $"Unknown carrier {carrierId}."));
         }
 
         return CommandValidation.Valid;
     }
 
     internal override void Apply(SimState state) =>
-        state.Template(TemplateId).SetAssignedVehicles([.. VehicleIds.Distinct().OrderBy(id => id)]);
+        state.Template(TemplateId).SetAssignedCarriers([.. CarrierIds.Distinct().OrderBy(id => id)]);
 
     internal override void WritePayload(BinaryWriter writer)
     {
         writer.Write(TemplateId);
-        writer.Write(VehicleIds.Length);
-        foreach (var vehicleId in VehicleIds)
-            writer.Write(vehicleId);
+        writer.Write(CarrierIds.Length);
+        foreach (var carrierId in CarrierIds)
+            writer.Write(carrierId);
     }
 
-    internal static SetTemplateVehiclesCommand ReadPayload(BinaryReader reader)
+    internal static SetTemplateCarriersCommand ReadPayload(BinaryReader reader)
     {
         var templateId = reader.ReadInt32();
-        var vehicleIds = new int[reader.ReadInt32()];
-        for (var i = 0; i < vehicleIds.Length; i++)
-            vehicleIds[i] = reader.ReadInt32();
-        return new SetTemplateVehiclesCommand(templateId, vehicleIds);
+        var carrierIds = new int[reader.ReadInt32()];
+        for (var i = 0; i < carrierIds.Length; i++)
+            carrierIds[i] = reader.ReadInt32();
+        return new SetTemplateCarriersCommand(templateId, carrierIds);
     }
 }
 

@@ -58,10 +58,10 @@ public class WorkerRosterTests
     public void CrewGating_ReflectsTheRosterTheSameTick()
     {
         // 2 navazze need crew 2 each = 4; firing one worker the same day the
-        // tour would run drops capacity to 3 -> only one vehicle operates.
+        // tour would run drops capacity to 3 -> only one carrier operates.
         var sim = NewSim();
-        sim.Submit(new AddVehicleCommand("base:navazza"));
-        sim.Submit(new AddVehicleCommand("base:navazza"));
+        sim.Submit(new AddCarrierCommand("base:navazza"));
+        sim.Submit(new AddCarrierCommand("base:navazza"));
         sim.Advance(1);
         sim.Submit(new SetCoverageCommand(1, [2]));
         sim.Submit(new SetCoverageCommand(2, [5]));
@@ -70,7 +70,7 @@ public class WorkerRosterTests
         Assert.Equal(2, sim.State.LastDayReports.Count);
 
         sim.Submit(new FireWorkerCommand(1));
-        sim.Advance(1); // Saturday: fired at open, only 3 crew -> one vehicle
+        sim.Advance(1); // Saturday: fired at open, only 3 crew -> one carrier
         Assert.Single(sim.State.LastDayReports);
     }
 

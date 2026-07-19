@@ -20,17 +20,17 @@ internal sealed class EventsSystem : ISimSystem
 
         var rng = state.Rng(RngStreamId.Events);
 
-        foreach (var vehicle in state.Vehicles) // id order: deterministic
+        foreach (var carrier in state.Carriers) // id order: deterministic
         {
-            if (state.Tick < vehicle.OutOfServiceUntilTick)
+            if (state.Tick < carrier.OutOfServiceUntilTick)
                 continue; // already in the workshop
             if (!Chance(rng, settings.BreakdownChanceBps))
                 continue;
 
-            vehicle.OutOfServiceUntilTick = state.Tick + settings.RepairTicks;
-            var repairCost = IntMath.ApplyBps(vehicle.Definition.PurchaseCents, settings.RepairCostBpsOfPurchase);
+            carrier.OutOfServiceUntilTick = state.Tick + settings.RepairTicks;
+            var repairCost = IntMath.ApplyBps(carrier.Definition.PurchaseCents, settings.RepairCostBpsOfPurchase);
             state.CashCents = checked(state.CashCents - repairCost); // extraordinary repair: posted at the breakdown tick
-            state.Emit(new SimEvent(state.Tick, SimEventType.VehicleBreakdown, vehicle.Id, vehicle.OutOfServiceUntilTick));
+            state.Emit(new SimEvent(state.Tick, SimEventType.CarrierBreakdown, carrier.Id, carrier.OutOfServiceUntilTick));
         }
 
         if (Chance(rng, settings.InspectionChanceBps))

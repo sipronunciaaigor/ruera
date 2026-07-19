@@ -48,19 +48,19 @@ public static class ScenarioHash
             hasher.Add(producer.Archetype);
         }
 
-        hasher.Add(definitions.Vehicles.Count);
-        foreach (var vehicle in definitions.Vehicles)
+        hasher.Add(definitions.Carriers.Count);
+        foreach (var carrier in definitions.Carriers)
         {
-            hasher.Add(vehicle.Id);
-            hasher.Add(vehicle.Name);
-            hasher.Add(vehicle.CapacityGrams);
-            hasher.Add(vehicle.FillMinutes);
-            hasher.Add(vehicle.EmptyMinutes);
-            hasher.Add(vehicle.MetersPerMinute);
-            hasher.Add(vehicle.PurchaseCents);
-            hasher.Add(vehicle.MaintenanceCentsPerDay);
-            hasher.Add(vehicle.Crew);
-            hasher.Add(vehicle.AvailableFromYear);
+            hasher.Add(carrier.Id);
+            hasher.Add(carrier.Name);
+            hasher.Add(carrier.CapacityGrams);
+            hasher.Add(carrier.FillMinutes);
+            hasher.Add(carrier.EmptyMinutes);
+            hasher.Add(carrier.MetersPerMinute);
+            hasher.Add(carrier.PurchaseCents);
+            hasher.Add(carrier.MaintenanceCentsPerDay);
+            hasher.Add(carrier.Crew);
+            hasher.Add(carrier.AvailableFromYear);
         }
 
         hasher.Add(definitions.WasteTypes.Count);

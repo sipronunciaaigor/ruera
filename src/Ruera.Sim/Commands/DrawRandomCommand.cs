@@ -6,7 +6,7 @@ namespace Ruera.Sim.Commands;
 
 /// <summary>
 /// Debug command: draws one value from a per-system RNG stream, perturbing
-/// downstream evolution. Real game commands (buy vehicle, hire, paint
+/// downstream evolution. Real game commands (buy carrier, hire, paint
 /// coverage, sign contract, …) land with their systems (RUE-12/14/16); this
 /// one exists so the command pipeline is exercisable before they do.
 /// </summary>
