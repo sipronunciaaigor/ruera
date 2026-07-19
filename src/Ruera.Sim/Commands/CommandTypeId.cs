@@ -17,4 +17,5 @@ public enum CommandTypeId : ushort
     UpdateRouteTemplate = 9,
     DeleteRouteTemplate = 10,
     SetTemplateVehicles = 11,
+    FireWorker = 12,
 }

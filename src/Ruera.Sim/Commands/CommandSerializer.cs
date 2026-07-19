@@ -62,6 +62,7 @@ public static class CommandSerializer
                 CommandTypeId.UpdateRouteTemplate => UpdateRouteTemplateCommand.ReadPayload(reader),
                 CommandTypeId.DeleteRouteTemplate => DeleteRouteTemplateCommand.ReadPayload(reader),
                 CommandTypeId.SetTemplateVehicles => SetTemplateVehiclesCommand.ReadPayload(reader),
+                CommandTypeId.FireWorker => FireWorkerCommand.ReadPayload(reader),
                 _ => throw new InvalidDataException(string.Create(CultureInfo.InvariantCulture,
                     $"Unknown command type id {(ushort)typeId}.")),
             };

@@ -16,4 +16,9 @@ public sealed class WorkerState
     public int Id { get; }
 
     public long HiredTick { get; }
+
+    // Room for a role field (raccolta/cernita/vendita/R&D — DESIGN.md §8) when
+    // processing and sales land: it slots into the canonical writer after
+    // HiredTick with a StateSchemaVersion bump, and defaults keep old saves
+    // loadable-forward. Not added now — no system reads a role yet (RUE-33).
 }
