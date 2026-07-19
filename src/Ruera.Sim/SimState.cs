@@ -114,6 +114,21 @@ public sealed class SimState
     /// <summary>Staff in id order, trainees included.</summary>
     public IReadOnlyList<WorkerState> Workers => _workers;
 
+    internal bool TryGetWorker(int id, out WorkerState worker)
+    {
+        foreach (var candidate in _workers) // id order
+        {
+            if (candidate.Id == id)
+            {
+                worker = candidate;
+                return true;
+            }
+        }
+
+        worker = null!;
+        return false;
+    }
+
     /// <summary>Ordered vehicles bought but not yet delivered (RUE-6: scheduled future-tick effects).</summary>
     public IReadOnlyList<(long DeliveryTick, string VehicleTypeId)> PendingDeliveries => _pendingDeliveries;
 
@@ -192,6 +207,20 @@ public sealed class SimState
         NextWorkerId++;
         _workers.Add(worker);
         return worker.Id;
+    }
+
+    internal void RemoveWorker(int id)
+    {
+        // Wages already accrued into WageAccruedCents stay payable at the next
+        // Saturday (RUE-33); only future accrual drops with the smaller roster.
+        for (var i = 0; i < _workers.Count; i++)
+        {
+            if (_workers[i].Id == id)
+            {
+                _workers.RemoveAt(i);
+                return;
+            }
+        }
     }
 
     internal int AddTemplate(string name, int[] edgeIds, byte weekdayMask)
