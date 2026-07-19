@@ -24,13 +24,13 @@ public class EventsTests
         TenderChanceBps: tender, TenderDeadlineTicks: 30);
 
     [Fact]
-    public void Breakdown_RemovesTheVehicleFromDayPlans()
+    public void Breakdown_RemovesTheCarrierFromDayPlans()
     {
         var broken = new Simulation(7, Graph, Definitions, Only(breakdown: 10_000)); // breaks whenever eligible
         var quiet = new Simulation(7, Graph, Definitions);
         foreach (var sim in (Simulation[])[broken, quiet])
         {
-            sim.Submit(new AddVehicleCommand("base:navazza"));
+            sim.Submit(new AddCarrierCommand("base:navazza"));
             sim.Advance(1);
             sim.Submit(new SetCoverageCommand(1, [2]));
         }
@@ -45,7 +45,7 @@ public class EventsTests
                 Assert.Single(quiet.State.LastDayReports); // same fleet, no events: it works
             foreach (var simEvent in broken.State.LastTickEvents)
             {
-                if (simEvent.Type == SimEventType.VehicleBreakdown)
+                if (simEvent.Type == SimEventType.CarrierBreakdown)
                 {
                     breakdowns++;
                     Assert.Equal(1, simEvent.EntityId);
@@ -60,12 +60,12 @@ public class EventsTests
     [Fact]
     public void Breakdown_PostsRepairCost_AndRespectsTheRepairWindow()
     {
-        // Vehicle without coverage: tours never differ, so the cash delta vs a
+        // Carrier without coverage: tours never differ, so the cash delta vs a
         // no-events twin is exactly repairs.
         var withEvents = new Simulation(11, Graph, Definitions, Only(breakdown: 5_000));
         var quiet = new Simulation(11, Graph, Definitions);
-        withEvents.Submit(new AddVehicleCommand("base:navazza"));
-        quiet.Submit(new AddVehicleCommand("base:navazza"));
+        withEvents.Submit(new AddCarrierCommand("base:navazza"));
+        quiet.Submit(new AddCarrierCommand("base:navazza"));
 
         var breakdownTicks = new List<long>();
         for (var i = 0; i < 60; i++)
@@ -74,7 +74,7 @@ public class EventsTests
             quiet.Advance(1);
             foreach (var simEvent in withEvents.State.LastTickEvents)
             {
-                if (simEvent.Type == SimEventType.VehicleBreakdown)
+                if (simEvent.Type == SimEventType.CarrierBreakdown)
                     breakdownTicks.Add(simEvent.Tick);
             }
         }
@@ -130,7 +130,7 @@ public class EventsTests
         static Simulation Script(ulong seed)
         {
             var sim = new Simulation(seed, Graph, Definitions, EventSettings.Default);
-            sim.Submit(new AddVehicleCommand("base:navazza"));
+            sim.Submit(new AddCarrierCommand("base:navazza"));
             sim.Submit(new HireWorkerCommand());
             sim.Advance(1);
             sim.Submit(new SetCoverageCommand(1, [2, 5]));

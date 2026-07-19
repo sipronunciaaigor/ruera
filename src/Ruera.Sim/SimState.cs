@@ -26,9 +26,9 @@ public sealed class SimState
     private readonly Xoshiro256StarStar[] _streams;
     private readonly ProducerState[] _producers; // sorted by id
     private readonly int[] _producerIds;
-    private readonly List<VehicleState> _vehicles = []; // ids assigned densely: always sorted
+    private readonly List<CarrierState> _carriers = []; // ids assigned densely: always sorted
     private readonly List<WorkerState> _workers = [];
-    private readonly List<(long DeliveryTick, string VehicleTypeId)> _pendingDeliveries = [];
+    private readonly List<(long DeliveryTick, string CarrierTypeId)> _pendingDeliveries = [];
     private readonly List<RouteTemplate> _templates = []; // ids monotonic: always sorted
     private readonly List<SimEvent> _events = [];
     private readonly List<DayPlanReport> _reports = [];
@@ -51,7 +51,7 @@ public sealed class SimState
     /// <summary>Latched true the first time cash closes below zero (DESIGN.md §12).</summary>
     public bool Bankrupt { get; internal set; }
 
-    internal int NextVehicleId { get; private set; } = 1;
+    internal int NextCarrierId { get; private set; } = 1;
 
     internal int NextWorkerId { get; private set; } = 1;
 
@@ -109,7 +109,7 @@ public sealed class SimState
     public IReadOnlyList<ProducerState> Producers => _producers;
 
     /// <summary>Fleet in id order.</summary>
-    public IReadOnlyList<VehicleState> Vehicles => _vehicles;
+    public IReadOnlyList<CarrierState> Carriers => _carriers;
 
     /// <summary>Staff in id order, trainees included.</summary>
     public IReadOnlyList<WorkerState> Workers => _workers;
@@ -129,8 +129,8 @@ public sealed class SimState
         return false;
     }
 
-    /// <summary>Ordered vehicles bought but not yet delivered (RUE-6: scheduled future-tick effects).</summary>
-    public IReadOnlyList<(long DeliveryTick, string VehicleTypeId)> PendingDeliveries => _pendingDeliveries;
+    /// <summary>Ordered carriers bought but not yet delivered (RUE-6: scheduled future-tick effects).</summary>
+    public IReadOnlyList<(long DeliveryTick, string CarrierTypeId)> PendingDeliveries => _pendingDeliveries;
 
     /// <summary>Service lines in id order (DESIGN.md §4).</summary>
     public IReadOnlyList<RouteTemplate> Templates => _templates;
@@ -138,7 +138,7 @@ public sealed class SimState
     /// <summary>Events emitted while resolving the last tick.</summary>
     public IReadOnlyList<SimEvent> LastTickEvents => _events;
 
-    /// <summary>Per-vehicle outcome of the last resolved day.</summary>
+    /// <summary>Per-carrier outcome of the last resolved day.</summary>
     public IReadOnlyList<DayPlanReport> LastDayReports => _reports;
 
     /// <summary>Per-line totals of the last resolved day (template-driven work only).</summary>
@@ -168,19 +168,19 @@ public sealed class SimState
         return index >= 0 ? _producers[index] : throw new KeyNotFoundException($"Unknown producer id {id}.");
     }
 
-    public VehicleState Vehicle(int id) =>
-        TryGetVehicle(id, out var vehicle) ? vehicle : throw new KeyNotFoundException($"Unknown vehicle id {id}.");
+    public CarrierState Carrier(int id) =>
+        TryGetCarrier(id, out var carrier) ? carrier : throw new KeyNotFoundException($"Unknown carrier id {id}.");
 
-    public bool TryGetVehicle(int id, out VehicleState vehicle)
+    public bool TryGetCarrier(int id, out CarrierState carrier)
     {
         var index = id - 1; // dense ids starting at 1
-        if (index >= 0 && index < _vehicles.Count)
+        if (index >= 0 && index < _carriers.Count)
         {
-            vehicle = _vehicles[index];
+            carrier = _carriers[index];
             return true;
         }
 
-        vehicle = null!;
+        carrier = null!;
         return false;
     }
 
@@ -193,12 +193,12 @@ public sealed class SimState
             : throw new ArgumentOutOfRangeException(nameof(id), id, "Unknown RNG stream.");
     }
 
-    internal int AddVehicle(string typeId)
+    internal int AddCarrier(string typeId)
     {
-        var vehicle = new VehicleState(NextVehicleId, Definitions!.Vehicle(typeId));
-        NextVehicleId++;
-        _vehicles.Add(vehicle);
-        return vehicle.Id;
+        var carrier = new CarrierState(NextCarrierId, Definitions!.Carrier(typeId));
+        NextCarrierId++;
+        _carriers.Add(carrier);
+        return carrier.Id;
     }
 
     internal int AddWorker(long hiredTick)
@@ -243,8 +243,8 @@ public sealed class SimState
         }
     }
 
-    internal void ScheduleDelivery(long deliveryTick, string vehicleTypeId) =>
-        _pendingDeliveries.Add((deliveryTick, vehicleTypeId));
+    internal void ScheduleDelivery(long deliveryTick, string carrierTypeId) =>
+        _pendingDeliveries.Add((deliveryTick, carrierTypeId));
 
     internal void DeliverDue()
     {
@@ -253,7 +253,7 @@ public sealed class SimState
         {
             if (_pendingDeliveries[index].DeliveryTick == Tick)
             {
-                AddVehicle(_pendingDeliveries[index].VehicleTypeId);
+                AddCarrier(_pendingDeliveries[index].CarrierTypeId);
                 _pendingDeliveries.RemoveAt(index);
             }
             else
@@ -297,16 +297,16 @@ public sealed class SimState
             stream.WriteState(writer);
 
         writer.Add(StockpileGrams);
-        writer.Add(NextVehicleId);
-        writer.Add(_vehicles.Count);
-        foreach (var vehicle in _vehicles) // id order
+        writer.Add(NextCarrierId);
+        writer.Add(_carriers.Count);
+        foreach (var carrier in _carriers) // id order
         {
-            writer.Add(vehicle.Id);
-            writer.Add(vehicle.TypeId);
-            writer.Add(vehicle.CoverageArray.Length);
-            foreach (var edgeId in vehicle.CoverageArray) // sorted
+            writer.Add(carrier.Id);
+            writer.Add(carrier.TypeId);
+            writer.Add(carrier.CoverageArray.Length);
+            foreach (var edgeId in carrier.CoverageArray) // sorted
                 writer.Add(edgeId);
-            writer.Add(vehicle.OutOfServiceUntilTick);
+            writer.Add(carrier.OutOfServiceUntilTick);
         }
 
         writer.Add(_producers.Length);
@@ -348,8 +348,8 @@ public sealed class SimState
             foreach (var edgeId in template.EdgeArray) // sorted
                 writer.Add(edgeId);
             writer.Add(template.AssignedArray.Length);
-            foreach (var vehicleId in template.AssignedArray) // sorted
-                writer.Add(vehicleId);
+            foreach (var carrierId in template.AssignedArray) // sorted
+                writer.Add(carrierId);
         }
     }
 
@@ -364,20 +364,20 @@ public sealed class SimState
             stream.SetState(reader.ReadUInt64(), reader.ReadUInt64(), reader.ReadUInt64(), reader.ReadUInt64());
 
         StockpileGrams = reader.ReadInt64();
-        NextVehicleId = reader.ReadInt32();
-        _vehicles.Clear();
-        var vehicleCount = reader.ReadInt32();
-        for (var i = 0; i < vehicleCount; i++)
+        NextCarrierId = reader.ReadInt32();
+        _carriers.Clear();
+        var carrierCount = reader.ReadInt32();
+        for (var i = 0; i < carrierCount; i++)
         {
             var id = reader.ReadInt32();
-            var vehicle = new VehicleState(id, Definitions!.Vehicle(reader.ReadString()));
+            var carrier = new CarrierState(id, Definitions!.Carrier(reader.ReadString()));
             var coverageCount = reader.ReadInt32();
             var coverage = new int[coverageCount];
             for (var c = 0; c < coverageCount; c++)
                 coverage[c] = reader.ReadInt32();
-            vehicle.SetCoverage(coverage);
-            vehicle.OutOfServiceUntilTick = reader.ReadInt64();
-            _vehicles.Add(vehicle);
+            carrier.SetCoverage(coverage);
+            carrier.OutOfServiceUntilTick = reader.ReadInt64();
+            _carriers.Add(carrier);
         }
 
         var producerCount = reader.ReadInt32();
@@ -421,7 +421,7 @@ public sealed class SimState
             var assigned = new int[reader.ReadInt32()];
             for (var v = 0; v < assigned.Length; v++)
                 assigned[v] = reader.ReadInt32();
-            template.SetAssignedVehicles(assigned);
+            template.SetAssignedCarriers(assigned);
             _templates.Add(template);
         }
     }

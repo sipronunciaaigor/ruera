@@ -8,14 +8,14 @@ public enum CommandTypeId : ushort
 {
     NoOp = 1,
     DrawRandom = 2,
-    AddVehicle = 3,
+    AddCarrier = 3,
     SetCoverage = 4,
-    BuyVehicle = 5,
+    BuyCarrier = 5,
     HireWorker = 6,
     SignContract = 7,
     CreateRouteTemplate = 8,
     UpdateRouteTemplate = 9,
     DeleteRouteTemplate = 10,
-    SetTemplateVehicles = 11,
+    SetTemplateCarriers = 11,
     FireWorker = 12,
 }

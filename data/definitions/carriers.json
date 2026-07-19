@@ -1,6 +1,6 @@
 {
   "formatVersion": 1,
-  "vehicles": [
+  "carriers": [
     {
       "id": "base:gerla",
       "name": "Gerla",

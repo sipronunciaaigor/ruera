@@ -8,7 +8,7 @@ namespace Ruera.Sim.Data;
 public sealed class DefinitionLoadException(string message) : Exception(message);
 
 /// <summary>
-/// Strict loader for the entity definition files (vehicles.json, waste.json,
+/// Strict loader for the entity definition files (carriers.json, waste.json,
 /// producers.json — DESIGN.md §2 «Dati, non codice»). JSON is culture-free by
 /// spec and quantities are integers in the files (§2 rule 8). Unknown fields,
 /// missing required fields, bad ranges and dangling references all fail the
@@ -27,23 +27,23 @@ public static class DefinitionLoader
     public static DefinitionRegistry LoadFromDirectory(string directory)
     {
         return Load(
-            ReadFile(directory, "vehicles.json"),
+            ReadFile(directory, "carriers.json"),
             ReadFile(directory, "waste.json"),
             ReadFile(directory, "producers.json"));
     }
 
-    public static DefinitionRegistry Load(string vehiclesJson, string wasteJson, string producersJson)
+    public static DefinitionRegistry Load(string carriersJson, string wasteJson, string producersJson)
     {
-        var vehicles = Parse<VehiclesFile>(vehiclesJson, "vehicles.json");
+        var carriers = Parse<CarriersFile>(carriersJson, "carriers.json");
         var waste = Parse<WasteFile>(wasteJson, "waste.json");
         var producers = Parse<ProducersFile>(producersJson, "producers.json");
 
-        ValidateVehicles(vehicles.Vehicles);
+        ValidateCarriers(carriers.Carriers);
         ValidateWaste(waste.WasteTypes);
         ValidateArchetypes(producers.Archetypes, waste.WasteTypes);
 
         return new DefinitionRegistry(
-            [.. vehicles.Vehicles],
+            [.. carriers.Carriers],
             [.. waste.WasteTypes],
             [.. producers.Archetypes]);
     }
@@ -77,22 +77,22 @@ public static class DefinitionLoader
         return file;
     }
 
-    private static void ValidateVehicles(List<VehicleDefinition> vehicles)
+    private static void ValidateCarriers(List<CarrierDefinition> carriers)
     {
-        RequireUniqueIds(vehicles.Select(v => v.Id), "vehicles.json");
-        foreach (var vehicle in vehicles)
+        RequireUniqueIds(carriers.Select(v => v.Id), "carriers.json");
+        foreach (var carrier in carriers)
         {
-            Require(!string.IsNullOrWhiteSpace(vehicle.Id), "vehicles.json", vehicle.Id, "id must not be empty");
-            RequireNamespacedId(vehicle.Id, "vehicles.json");
-            Require(!string.IsNullOrWhiteSpace(vehicle.Name), "vehicles.json", vehicle.Id, "name must not be empty");
-            Require(vehicle.CapacityGrams > 0, "vehicles.json", vehicle.Id, Invariant($"capacityGrams must be > 0 (was {vehicle.CapacityGrams})"));
-            Require(vehicle.FillMinutes >= 0, "vehicles.json", vehicle.Id, Invariant($"fillMinutes must be >= 0 (was {vehicle.FillMinutes})"));
-            Require(vehicle.EmptyMinutes >= 0, "vehicles.json", vehicle.Id, Invariant($"emptyMinutes must be >= 0 (was {vehicle.EmptyMinutes})"));
-            Require(vehicle.MetersPerMinute > 0, "vehicles.json", vehicle.Id, Invariant($"metersPerMinute must be > 0 (was {vehicle.MetersPerMinute})"));
-            Require(vehicle.PurchaseCents >= 0, "vehicles.json", vehicle.Id, Invariant($"purchaseCents must be >= 0 (was {vehicle.PurchaseCents})"));
-            Require(vehicle.MaintenanceCentsPerDay >= 0, "vehicles.json", vehicle.Id, Invariant($"maintenanceCentsPerDay must be >= 0 (was {vehicle.MaintenanceCentsPerDay})"));
-            Require(vehicle.Crew >= 1, "vehicles.json", vehicle.Id, Invariant($"crew must be >= 1 (was {vehicle.Crew})"));
-            Require(vehicle.AvailableFromYear is >= 1500 and <= 3000, "vehicles.json", vehicle.Id, Invariant($"availableFromYear must be within 1500-3000 (was {vehicle.AvailableFromYear})"));
+            Require(!string.IsNullOrWhiteSpace(carrier.Id), "carriers.json", carrier.Id, "id must not be empty");
+            RequireNamespacedId(carrier.Id, "carriers.json");
+            Require(!string.IsNullOrWhiteSpace(carrier.Name), "carriers.json", carrier.Id, "name must not be empty");
+            Require(carrier.CapacityGrams > 0, "carriers.json", carrier.Id, Invariant($"capacityGrams must be > 0 (was {carrier.CapacityGrams})"));
+            Require(carrier.FillMinutes >= 0, "carriers.json", carrier.Id, Invariant($"fillMinutes must be >= 0 (was {carrier.FillMinutes})"));
+            Require(carrier.EmptyMinutes >= 0, "carriers.json", carrier.Id, Invariant($"emptyMinutes must be >= 0 (was {carrier.EmptyMinutes})"));
+            Require(carrier.MetersPerMinute > 0, "carriers.json", carrier.Id, Invariant($"metersPerMinute must be > 0 (was {carrier.MetersPerMinute})"));
+            Require(carrier.PurchaseCents >= 0, "carriers.json", carrier.Id, Invariant($"purchaseCents must be >= 0 (was {carrier.PurchaseCents})"));
+            Require(carrier.MaintenanceCentsPerDay >= 0, "carriers.json", carrier.Id, Invariant($"maintenanceCentsPerDay must be >= 0 (was {carrier.MaintenanceCentsPerDay})"));
+            Require(carrier.Crew >= 1, "carriers.json", carrier.Id, Invariant($"crew must be >= 1 (was {carrier.Crew})"));
+            Require(carrier.AvailableFromYear is >= 1500 and <= 3000, "carriers.json", carrier.Id, Invariant($"availableFromYear must be within 1500-3000 (was {carrier.AvailableFromYear})"));
         }
     }
 
@@ -169,11 +169,11 @@ public static class DefinitionLoader
         int FormatVersion { get; }
     }
 
-    private sealed class VehiclesFile : IDefinitionFile
+    private sealed class CarriersFile : IDefinitionFile
     {
         public required int FormatVersion { get; init; }
 
-        public required List<VehicleDefinition> Vehicles { get; init; }
+        public required List<CarrierDefinition> Carriers { get; init; }
     }
 
     private sealed class WasteFile : IDefinitionFile

@@ -44,7 +44,7 @@ public readonly record struct Meters(long Value) : IComparable<Meters>
     public override string ToString() => string.Create(CultureInfo.InvariantCulture, $"{Value} m");
 }
 
-/// <summary>Mass quantity in grams (waste volumes, vehicle capacities).</summary>
+/// <summary>Mass quantity in grams (waste volumes, carrier capacities).</summary>
 public readonly record struct Grams(long Value) : IComparable<Grams>
 {
     public static readonly Grams Zero = new(0);

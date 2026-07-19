@@ -17,8 +17,8 @@ public class SaveLoadTests
     private static Simulation ScriptedSim(ulong seed = 2026)
     {
         var sim = new Simulation(seed, Graph, Definitions);
-        sim.Submit(new AddVehicleCommand("base:navazza"));
-        sim.Submit(new BuyVehicleCommand("base:gerla"));
+        sim.Submit(new AddCarrierCommand("base:navazza"));
+        sim.Submit(new BuyCarrierCommand("base:gerla"));
         sim.Submit(new HireWorkerCommand());
         sim.Submit(new SignContractCommand(1));
         sim.Advance(1);
@@ -108,9 +108,9 @@ public class SaveLoadTests
     public void DifferentScenarioData_IsRejected()
     {
         var bytes = SaveSystem.Save(ScriptedSim());
-        var vehiclesJson = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "data", "definitions", "vehicles.json"))
+        var carriersJson = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "data", "definitions", "carriers.json"))
             .Replace("\"capacityGrams\": 25000", "\"capacityGrams\": 26000");
-        var tweaked = DefinitionLoader.Load(vehiclesJson,
+        var tweaked = DefinitionLoader.Load(carriersJson,
             File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "data", "definitions", "waste.json")),
             File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "data", "definitions", "producers.json")));
 

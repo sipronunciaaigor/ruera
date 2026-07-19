@@ -18,7 +18,7 @@ public sealed record EventSettings(
 {
     /// <summary>Vertical-slice defaults: placeholder balancing, tuned via headless runs later.</summary>
     public static EventSettings Default { get; } = new(
-        BreakdownChanceBps: 150,        // ~1.5% per working day per vehicle
+        BreakdownChanceBps: 150,        // ~1.5% per working day per carrier
         RepairTicks: 5,
         RepairCostBpsOfPurchase: 500,   // repair = 5% of purchase price
         InspectionChanceBps: 100,

@@ -9,31 +9,31 @@ namespace Ruera.Sim.Data;
 /// </summary>
 public sealed class DefinitionRegistry
 {
-    private readonly VehicleDefinition[] _vehicles;
+    private readonly CarrierDefinition[] _carriers;
     private readonly WasteDefinition[] _wasteTypes;
     private readonly ProducerArchetype[] _producerArchetypes;
-    private readonly string[] _vehicleIds;
+    private readonly string[] _carrierIds;
     private readonly string[] _wasteIds;
     private readonly string[] _archetypeIds;
 
     internal DefinitionRegistry(
-        VehicleDefinition[] vehicles,
+        CarrierDefinition[] carriers,
         WasteDefinition[] wasteTypes,
         ProducerArchetype[] producerArchetypes)
     {
-        Array.Sort(vehicles, static (a, b) => string.CompareOrdinal(a.Id, b.Id));
+        Array.Sort(carriers, static (a, b) => string.CompareOrdinal(a.Id, b.Id));
         Array.Sort(wasteTypes, static (a, b) => string.CompareOrdinal(a.Id, b.Id));
         Array.Sort(producerArchetypes, static (a, b) => string.CompareOrdinal(a.Id, b.Id));
-        _vehicles = vehicles;
+        _carriers = carriers;
         _wasteTypes = wasteTypes;
         _producerArchetypes = producerArchetypes;
-        _vehicleIds = [.. vehicles.Select(v => v.Id)];
+        _carrierIds = [.. carriers.Select(v => v.Id)];
         _wasteIds = [.. wasteTypes.Select(w => w.Id)];
         _archetypeIds = [.. producerArchetypes.Select(a => a.Id)];
     }
 
-    /// <summary>All vehicle types, sorted by id.</summary>
-    public IReadOnlyList<VehicleDefinition> Vehicles => _vehicles;
+    /// <summary>All carrier types, sorted by id.</summary>
+    public IReadOnlyList<CarrierDefinition> Carriers => _carriers;
 
     /// <summary>All waste fractions, sorted by id.</summary>
     public IReadOnlyList<WasteDefinition> WasteTypes => _wasteTypes;
@@ -41,13 +41,13 @@ public sealed class DefinitionRegistry
     /// <summary>All producer archetypes, sorted by id.</summary>
     public IReadOnlyList<ProducerArchetype> ProducerArchetypes => _producerArchetypes;
 
-    public VehicleDefinition Vehicle(string id) => Get(_vehicles, _vehicleIds, id, "vehicle");
+    public CarrierDefinition Carrier(string id) => Get(_carriers, _carrierIds, id, "carrier");
 
     public WasteDefinition Waste(string id) => Get(_wasteTypes, _wasteIds, id, "waste type");
 
     public ProducerArchetype Archetype(string id) => Get(_producerArchetypes, _archetypeIds, id, "producer archetype");
 
-    public bool TryGetVehicle(string id, out VehicleDefinition definition) => TryGet(_vehicles, _vehicleIds, id, out definition);
+    public bool TryGetCarrier(string id, out CarrierDefinition definition) => TryGet(_carriers, _carrierIds, id, out definition);
 
     public bool TryGetWaste(string id, out WasteDefinition definition) => TryGet(_wasteTypes, _wasteIds, id, out definition);
 

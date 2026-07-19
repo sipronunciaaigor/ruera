@@ -19,11 +19,11 @@ public class DayPlanTests
     private static readonly DefinitionRegistry Definitions =
         DefinitionLoader.LoadFromDirectory(Path.Combine(AppContext.BaseDirectory, "data", "definitions"));
 
-    private static Simulation WithVehicle(string type, int[] coverage, ulong seed = 1)
+    private static Simulation WithCarrier(string type, int[] coverage, ulong seed = 1)
     {
         var sim = new Simulation(seed, Graph, Definitions);
-        sim.Submit(new AddVehicleCommand(type));
-        sim.Advance(1); // resolves the Jan 1 holiday: production only, vehicle materializes
+        sim.Submit(new AddCarrierCommand(type));
+        sim.Advance(1); // resolves the Jan 1 holiday: production only, carrier materializes
         sim.Submit(new SetCoverageCommand(1, coverage));
         return sim;
     }
@@ -31,7 +31,7 @@ public class DayPlanTests
     [Fact]
     public void ExecutedTour_MatchesHandComputedPlan()
     {
-        var sim = WithVehicle("base:navazza", [2]);
+        var sim = WithCarrier("base:navazza", [2]);
 
         sim.Advance(1); // Fri Jan 2: first working day
 
@@ -49,8 +49,8 @@ public class DayPlanTests
     public void Preview_IsPessimistic_OverlapBenefitOnlyInExecution()
     {
         var sim = new Simulation(1, Graph, Definitions);
-        sim.Submit(new AddVehicleCommand("base:navazza"));
-        sim.Submit(new AddVehicleCommand("base:navazza"));
+        sim.Submit(new AddCarrierCommand("base:navazza"));
+        sim.Submit(new AddCarrierCommand("base:navazza"));
         sim.Advance(1);
         sim.Submit(new SetCoverageCommand(1, [2]));
         sim.Submit(new SetCoverageCommand(2, [2]));
@@ -88,7 +88,7 @@ public class DayPlanTests
     [Fact]
     public void RestDays_ProduceButDoNotCollect()
     {
-        var sim = WithVehicle("base:navazza", [2]);
+        var sim = WithCarrier("base:navazza", [2]);
 
         sim.Advance(3); // Fri (collect), Sat (collect), Sun (rest)
 
@@ -101,7 +101,7 @@ public class DayPlanTests
     [Fact]
     public void CapacityLimits_CausePartialCollection()
     {
-        var sim = WithVehicle("base:gerla", [5]); // 25 000 g basket vs condo-large
+        var sim = WithCarrier("base:gerla", [5]); // 25 000 g basket vs condo-large
 
         sim.Advance(1);
 
@@ -119,7 +119,7 @@ public class DayPlanTests
         static Simulation Script(ulong seed)
         {
             var sim = new Simulation(seed, Graph, Definitions);
-            sim.Submit(new AddVehicleCommand("base:navazza"));
+            sim.Submit(new AddCarrierCommand("base:navazza"));
             sim.Advance(1);
             sim.Submit(new SetCoverageCommand(1, [8, 2, 5])); // unsorted on purpose: canonicalized in state
             sim.Advance(29);
@@ -140,7 +140,7 @@ public class DayPlanTests
     {
         CommandLogEntry[] entries =
         [
-            new(0, new AddVehicleCommand("base:gerla")),
+            new(0, new AddCarrierCommand("base:gerla")),
             new(2, new SetCoverageCommand(1, [5, 2])),
         ];
 
@@ -152,10 +152,10 @@ public class DayPlanTests
     {
         var sim = new Simulation(1, Graph, Definitions);
 
-        Assert.Throws<ArgumentException>(() => sim.Submit(new AddVehicleCommand("base:zeppelin")));
-        Assert.Throws<ArgumentException>(() => sim.Submit(new SetCoverageCommand(1, [2]))); // no vehicle yet
+        Assert.Throws<ArgumentException>(() => sim.Submit(new AddCarrierCommand("base:zeppelin")));
+        Assert.Throws<ArgumentException>(() => sim.Submit(new SetCoverageCommand(1, [2]))); // no carrier yet
 
         var worldless = new Simulation(1);
-        Assert.Throws<ArgumentException>(() => worldless.Submit(new AddVehicleCommand("base:gerla")));
+        Assert.Throws<ArgumentException>(() => worldless.Submit(new AddCarrierCommand("base:gerla")));
     }
 }

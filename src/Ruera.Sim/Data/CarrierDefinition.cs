@@ -1,11 +1,11 @@
 namespace Ruera.Sim.Data;
 
 /// <summary>
-/// A vehicle type as declared in vehicles.json (DESIGN.md §2 «Dati, non
+/// A carrier type as declared in carriers.json (DESIGN.md §2 «Dati, non
 /// codice», §8). Raw properties bind to JSON in integer units; unit-typed
 /// accessors keep sim code in unit structs.
 /// </summary>
-public sealed class VehicleDefinition
+public sealed class CarrierDefinition
 {
     public required string Id { get; init; }
 

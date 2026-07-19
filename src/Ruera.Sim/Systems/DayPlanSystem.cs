@@ -6,10 +6,10 @@ namespace Ruera.Sim.Systems;
 
 /// <summary>
 /// Step 4 of the in-tick order: the working day as a capacity problem solved
-/// inside the tick (DESIGN.md §2, §4). Each vehicle with painted coverage gets
+/// inside the tick (DESIGN.md §2, §4). Each carrier with painted coverage gets
 /// a deterministic greedy tour (nearest-neighbor from the depot, deliberately
 /// suboptimal), consuming a minutes budget: travel + stops + depot round-trip.
-/// Overlap rule: the first vehicle empties, later ones pass through paying
+/// Overlap rule: the first carrier empties, later ones pass through paying
 /// travel only. Effects are written at tick close; the rendered day is staging.
 /// </summary>
 internal sealed class DayPlanSystem : ISimSystem
@@ -37,7 +37,7 @@ internal sealed class DayPlanSystem : ISimSystem
         for (var i = 0; i < activeLines.Count; i++)
             lineServed[i] = [];
 
-        // Crew gating: vehicles staff up in id order from productive workers
+        // Crew gating: carriers staff up in id order from productive workers
         // only — trainees cost wages but crew nothing (DESIGN.md §2).
         var crewAvailable = 0;
         foreach (var worker in state.Workers)
@@ -46,25 +46,25 @@ internal sealed class DayPlanSystem : ISimSystem
                 crewAvailable++;
         }
 
-        foreach (var vehicle in state.Vehicles) // id order: deterministic
+        foreach (var carrier in state.Carriers) // id order: deterministic
         {
-            if (state.Tick < vehicle.OutOfServiceUntilTick)
+            if (state.Tick < carrier.OutOfServiceUntilTick)
                 continue; // in the workshop (RUE-32)
 
             // Direct painted coverage is the override (DESIGN.md §4);
             // otherwise the union of today's assigned lines, in line id order.
             int[] coverage;
             var attributed = new List<int>(); // indices into activeLines
-            if (vehicle.CoverageArray.Length > 0)
+            if (carrier.CoverageArray.Length > 0)
             {
-                coverage = vehicle.CoverageArray;
+                coverage = carrier.CoverageArray;
             }
             else
             {
                 var union = new List<int>();
                 for (var i = 0; i < activeLines.Count; i++)
                 {
-                    if (Array.BinarySearch(activeLines[i].AssignedArray, vehicle.Id) < 0)
+                    if (Array.BinarySearch(activeLines[i].AssignedArray, carrier.Id) < 0)
                         continue;
                     attributed.Add(i);
                     union.AddRange(activeLines[i].EdgeArray);
@@ -73,12 +73,12 @@ internal sealed class DayPlanSystem : ISimSystem
                 coverage = [.. union.Distinct().OrderBy(id => id)];
             }
 
-            if (coverage.Length == 0 || vehicle.Definition.Crew > crewAvailable)
+            if (coverage.Length == 0 || carrier.Definition.Crew > crewAvailable)
                 continue;
-            crewAvailable -= vehicle.Definition.Crew;
+            crewAvailable -= carrier.Definition.Crew;
             foreach (var lineIndex in attributed)
                 lineDispatched[lineIndex]++;
-            ExecuteTour(state, vehicle, coverage, activeLines, attributed, lineCollected, lineServed);
+            ExecuteTour(state, carrier, coverage, activeLines, attributed, lineCollected, lineServed);
         }
 
         for (var i = 0; i < activeLines.Count; i++)
@@ -88,11 +88,11 @@ internal sealed class DayPlanSystem : ISimSystem
         }
     }
 
-    private static void ExecuteTour(SimState state, VehicleState vehicle, int[] coverageEdges,
+    private static void ExecuteTour(SimState state, CarrierState carrier, int[] coverageEdges,
         List<RouteTemplate> activeLines, List<int> attributed, long[] lineCollected, List<int>[] lineServed)
     {
         var graph = state.Graph!;
-        var definition = vehicle.Definition;
+        var definition = carrier.Definition;
         var depotNode = graph.Depots[0].Node;
 
         var remaining = new List<int>(coverageEdges); // sorted: ties pick lowest id
@@ -156,20 +156,20 @@ internal sealed class DayPlanSystem : ISimSystem
         }
 
         state.StockpileGrams = checked(state.StockpileGrams + collected);
-        state.Report(new DayPlanReport(vehicle.Id, used, collected, served));
+        state.Report(new DayPlanReport(carrier.Id, used, collected, served));
     }
 
     /// <summary>
     /// Pessimistic preview for the UI (DESIGN.md §4): full cost of the painted
     /// coverage — every producer on it costs a stop regardless of buffers,
-    /// other vehicles or capacity. Overlap savings exist only in execution;
+    /// other carriers or capacity. Overlap savings exist only in execution;
     /// estimates are pessimistic, reality can only be better.
     /// </summary>
-    public static Minutes Preview(SimState state, VehicleState vehicle) =>
-        Preview(state, vehicle.Definition, vehicle.CoverageArray);
+    public static Minutes Preview(SimState state, CarrierState carrier) =>
+        Preview(state, carrier.Definition, carrier.CoverageArray);
 
     /// <summary>Same estimate for a tentative coverage set (the UI previews while painting).</summary>
-    public static Minutes Preview(SimState state, VehicleDefinition definition, IReadOnlyList<int> coverage)
+    public static Minutes Preview(SimState state, CarrierDefinition definition, IReadOnlyList<int> coverage)
     {
         var graph = state.Graph
                     ?? throw new InvalidOperationException("Preview requires a world (street graph).");

@@ -3,15 +3,15 @@ using Ruera.Sim.Data;
 namespace Ruera.Sim;
 
 /// <summary>
-/// Mutable per-vehicle state: type (definition from RUE-12 data) and the
+/// Mutable per-carrier state: type (definition from RUE-12 data) and the
 /// painted coverage set — which streets to cover, not in which order
-/// (DESIGN.md §4). Vehicles start and end every day at the depot.
+/// (DESIGN.md §4). Carriers start and end every day at the depot.
 /// </summary>
-public sealed class VehicleState
+public sealed class CarrierState
 {
     private int[] _coverageEdges = [];
 
-    internal VehicleState(int id, VehicleDefinition definition)
+    internal CarrierState(int id, CarrierDefinition definition)
     {
         Id = id;
         Definition = definition;
@@ -19,7 +19,7 @@ public sealed class VehicleState
 
     public int Id { get; }
 
-    public VehicleDefinition Definition { get; }
+    public CarrierDefinition Definition { get; }
 
     public string TypeId => Definition.Id;
 
@@ -37,5 +37,5 @@ public sealed class VehicleState
     }
 }
 
-/// <summary>What one vehicle did in the last resolved day (inspectability, DESIGN.md §2).</summary>
-public sealed record DayPlanReport(int VehicleId, long MinutesUsed, long CollectedGrams, IReadOnlyList<int> ServedProducerIds);
+/// <summary>What one carrier did in the last resolved day (inspectability, DESIGN.md §2).</summary>
+public sealed record DayPlanReport(int CarrierId, long MinutesUsed, long CollectedGrams, IReadOnlyList<int> ServedProducerIds);

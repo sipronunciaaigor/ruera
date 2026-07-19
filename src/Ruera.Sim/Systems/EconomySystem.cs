@@ -6,8 +6,8 @@ namespace Ruera.Sim.Systems;
 /// Closing accounting (step 7 of the in-tick order) on the RUE-6 cadences:
 /// wages accrue per worked day and are paid at Saturday close; condo contracts
 /// pay on the first tick of the month (previous month's fee); routine
-/// maintenance is a daily rate per owned vehicle; fines post at the tick the
-/// violation is assessed; purchased vehicles materialize at their scheduled
+/// maintenance is a daily rate per owned carrier; fines post at the tick the
+/// violation is assessed; purchased carriers materialize at their scheduled
 /// delivery tick. Bankruptcy latches the first time cash closes below zero.
 /// </summary>
 internal sealed class EconomySystem : ISimSystem
@@ -41,8 +41,8 @@ internal sealed class EconomySystem : ISimSystem
             }
         }
 
-        foreach (var vehicle in state.Vehicles) // id order
-            state.CashCents = checked(state.CashCents - vehicle.Definition.MaintenanceCentsPerDay);
+        foreach (var carrier in state.Carriers) // id order
+            state.CashCents = checked(state.CashCents - carrier.Definition.MaintenanceCentsPerDay);
 
         foreach (var simEvent in state.LastTickEvents)
         {

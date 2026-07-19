@@ -4,14 +4,14 @@ namespace Ruera.Sim;
 
 /// <summary>
 /// A «linea di servizio» (DESIGN.md §4): a named tour template — an edge set
-/// scheduled on the weekly pattern and assigned to vehicles ("Giro Navigli:
-/// camion 3 e 7, lun/gio"). Per-vehicle direct coverage remains the override.
+/// scheduled on the weekly pattern and assigned to carriers ("Giro Navigli:
+/// camion 3 e 7, lun/gio"). Per-carrier direct coverage remains the override.
 /// The line is also the per-route reporting unit.
 /// </summary>
 public sealed class RouteTemplate
 {
     private int[] _edges;
-    private int[] _assignedVehicles = [];
+    private int[] _assignedCarriers = [];
 
     internal RouteTemplate(int id, string name, int[] sortedEdges, byte weekdayMask)
     {
@@ -31,12 +31,12 @@ public sealed class RouteTemplate
     /// <summary>Covered street edges, sorted ascending (canonical form).</summary>
     public IReadOnlyList<int> Edges => _edges;
 
-    /// <summary>Assigned vehicle ids, sorted ascending.</summary>
-    public IReadOnlyList<int> AssignedVehicles => _assignedVehicles;
+    /// <summary>Assigned carrier ids, sorted ascending.</summary>
+    public IReadOnlyList<int> AssignedCarriers => _assignedCarriers;
 
     internal int[] EdgeArray => _edges;
 
-    internal int[] AssignedArray => _assignedVehicles;
+    internal int[] AssignedArray => _assignedCarriers;
 
     internal void Update(string name, int[] sortedEdges, byte weekdayMask)
     {
@@ -45,7 +45,7 @@ public sealed class RouteTemplate
         WeekdayMask = weekdayMask;
     }
 
-    internal void SetAssignedVehicles(int[] sortedVehicleIds) => _assignedVehicles = sortedVehicleIds;
+    internal void SetAssignedCarriers(int[] sortedCarrierIds) => _assignedCarriers = sortedCarrierIds;
 
     public bool IsActiveOn(Weekday weekday) => (WeekdayMask & (1 << (int)weekday)) != 0;
 
@@ -60,4 +60,4 @@ public sealed class RouteTemplate
 }
 
 /// <summary>What one service line achieved in the last resolved day (per-line totals, DESIGN.md §4).</summary>
-public sealed record LineReport(int TemplateId, int VehiclesDispatched, long CollectedGrams, IReadOnlyList<int> ServedProducerIds);
+public sealed record LineReport(int TemplateId, int CarriersDispatched, long CollectedGrams, IReadOnlyList<int> ServedProducerIds);

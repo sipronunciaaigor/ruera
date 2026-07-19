@@ -11,8 +11,8 @@ public enum SimEventType
     /// <summary>Cash closed below zero for the first time (DESIGN.md §12: finire in rosso).</summary>
     Bankruptcy = 3,
 
-    /// <summary>Vehicle broke down: out of service until the tick in Data; repair cost posted (RUE-32).</summary>
-    VehicleBreakdown = 4,
+    /// <summary>Carrier broke down: out of service until the tick in Data; repair cost posted (RUE-32).</summary>
+    CarrierBreakdown = 4,
 
     /// <summary>Sanitary inspection: Data carries the total fines charged on standing violations (RUE-32).</summary>
     SanitaryInspection = 5,
@@ -23,7 +23,7 @@ public enum SimEventType
 
 /// <summary>
 /// A fact emitted while resolving a tick. EntityId is the producer for
-/// violations/tenders, the vehicle for breakdowns, 0 otherwise; Data carries
+/// violations/tenders, the carrier for breakdowns, 0 otherwise; Data carries
 /// the event-specific number (see each type). Emitted every tick the
 /// condition holds; re-derivable from state, so events are a query surface,
 /// not hashed state.
