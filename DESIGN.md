@@ -178,6 +178,44 @@ Regole dal giorno uno:
 3. **Niente logica nei dati in V1**: i pacchetti dichiarano parametri, mai codice. Le mod di codice (sistemi custom, patching) sono materia post-V1/Ruera 2: dentro la sim richiederebbero le stesse regole di determinismo di §2, non esponibili in sicurezza oggi.
 4. **UI e rendering moddabili lato Godot**: skin, icone, viste non toccano sim né determinismo; si valutano quando esiste la UI (RUE-17+).
 
+### Scenario e timeline storica: dati, non codice *(deciso 2026-07-19 — RUE-20)*
+
+**Decisione: lo scenario è l'unità di contenuto di primo livello — un pacchetto (§«Moddabilità») che raccoglie mappa, calendario, timeline storica e condizioni iniziali. La timeline è una lista di *effetti tipizzati e parametrizzati* su un vocabolario chiuso, non codice.** Chiude il debito §15.9: `SimCalendar.Milano1880()` diventa il caricamento del pacchetto `base:milano-1880`.
+
+Il problema difficile è la **timeline storica di 170 anni in cui gli eventi cambiano le regole del gioco** (WWI: penuria di carburante, i cavalli tornano; autarchia anni '30: recupero materiali obbligatorio; norma inceneritori; la settimana lavorativa che nel '900 perde il sabato). Esprimere un «cambio di regola» come dato senza incorporare codice si risolve con lo **stesso principio dei comandi (RUE-15) e della moddabilità**: il motore possiede un insieme *chiuso* di applicatori di effetti; i dati **selezionano e parametrizzano**, non programmano.
+
+**Due nozioni di «evento» che non vanno confuse** (entrambe girano nello step calendario/eventi del tick, RUE-6):
+
+- **Eventi di timeline (scriptati, RUE-20)**: deterministici, parte dell'identità dello scenario (entrano nell'hash dei dati di scenario, RUE-8). Sono i binari storici: si applicano a un tick noto (o su condizione dichiarata). Nessun RNG.
+- **Eventi stocastici (RUE-32)**: casuali, dallo stream RNG `Events` (guasti, ispezioni, bandi). L'`EventSettings` di RUE-32 **confluisce nel pacchetto scenario** come sua sezione.
+
+**Formato** (JSON, `formatVersion`, unità intere, id namespaced §«Moddabilità»):
+
+```
+scenario  = { id, name, map: <mapId>, calendar, startConditions, randomEvents, timeline: [ entry… ] }
+calendar  = { epoch: {y,m,d}, fixedHolidays: [{m,d}…], workingWeek: { restDays: [Sunday] } }
+entry     = { on: <trigger>, effects: [ effect… ] }        // effetti in ordine dichiarato = ordine di applicazione
+trigger   = { atDate: {y,m,d} }                            // caso storico comune; ordine deterministico per (tick, indice)
+          | { onCondition: <predicato chiuso> }            // riservato: predicati da vocabolario chiuso, non blocca la slice
+effect    = { type: <effectType>, …parametri }             // vocabolario chiuso, id append-only come i wire dei comandi
+```
+
+**Vocabolario chiuso degli effetti** (append-only; si estende quando arriva il contenuto che lo richiede):
+
+- `SetCalendar` — cambia festività o settimana lavorativa da quella data (il sabato che diventa festivo negli anni '20);
+- `SetCarrierAvailability` / `SetProducerParam` — override di un parametro di definizione dalla data (autarchia che apre nuovi flussi di recupero; guerra che ritira l'autocarro e riabilita la navazza);
+- `ScaleParam` — moltiplicatore in basis points su un parametro nominato (costo carburante ×N in guerra);
+- `RequireNorm` — vincolo normativo con scadenza e penale (obbligo inceneritore): è lo *scripted* che arma il gate; l'ispezione stocastica (RUE-32) lo verifica;
+- `GrowWorld` — muta mappa/produttori (nuovi quartieri, densità): **è così che lo script di crescita città diventa dato** (vedi sotto).
+
+Determinismo garantito: gli effetti si applicano al confine del tick nello step calendario/eventi, in ordine dichiarato; nessuna trascendenza, nessun RNG negli scriptati. Modificare la timeline = partita diversa (hash di scenario) = save/replay restano onesti.
+
+**Rapporto con RUE-9 (pipeline mappe)**: RUE-9 ha reso la mappa un `*.map.json` referenziato per id. Lo scenario diventa il **bundle di primo livello** che *referenzia* quella mappa e aggiunge calendario + timeline + settings; l'hash di scenario (RUE-8) diventa l'hash del bundle (mappa inclusa). Un pacchetto mod fornisce uno scenario intero.
+
+**Rapporto con lo script di crescita città (§15.1)**: chiarito — la crescita **non è un secondo sistema**, è una famiglia di effetti di timeline (`GrowWorld`) sullo stesso meccanismo. Il generatore (§11) produrrà scenari — cioè mappe *più* timeline di crescita — non solo mappe. Resta aperto *cosa* generare (le traiettorie), non *come* rappresentarle.
+
+**Non blocca la slice**: con un solo scenario `base:milano-1880` la timeline può essere vuota o minima (una-due norme igieniche). Implementazione operativa in un ticket dedicato quando arriva il secondo scenario o il primo evento storico vero; l'`onCondition` si concretizza solo se un evento della slice lo richiede.
+
 ---
 
 ## 3. Produttori e rifiuti
@@ -339,7 +377,7 @@ Regione con un grande centro urbano e centri satellite; la regione può avere al
 Vasta area alla Simutrans con entità urbane di ogni tipo e territori variegati.
 
 ### La città cresce
-La città evolve nei 170 anni (popolazione, quartieri, eventi storici). **Sistema da progettare** (direzione: scenario = mappa + script di crescita; il generatore dovrà produrre traiettorie, non solo mappe). Discussione rimandata.
+La città evolve nei 170 anni (popolazione, quartieri, eventi storici). **Sistema da progettare** (direzione: scenario = mappa + script di crescita; il generatore dovrà produrre traiettorie, non solo mappe). Discussione rimandata. *Rappresentazione decisa* (RUE-20, §2 «Scenario e timeline storica»): la crescita è una famiglia di effetti di timeline (`GrowWorld`), non un secondo sistema; resta aperto cosa generare, non come rappresentarlo.
 
 ### Pipeline delle mappe e formato file *(deciso 2026-07-17 — RUE-9)*
 
@@ -394,7 +432,7 @@ Manutenzione del verde, pulizia muri/strade, ritiro ingombranti (privati e pubbl
 
 ## 15. Questioni aperte
 
-1. **Script di crescita della città** e generatore di traiettorie (rimandato, da progettare prima degli scenari).
+1. **Script di crescita della città** e generatore di traiettorie (rimandato, da progettare prima degli scenari). *Rappresentazione decisa* (RUE-20): effetti di timeline `GrowWorld` (§2 «Scenario e timeline storica»); resta aperto il *cosa* generare, non il *come*.
 2. **Dettaglio del sistema eventi** (tipi, frequenze, ritmo delle interruzioni per modalità).
 3. **Pacing fine delle epoche**: quali anni di partenza per quali scenari; eventuale compressione elastica delle epoche povere.
 4. **UI multi-frazione** post-1980: layer/filtri per frazione sulla mappa di pittura (da considerare nel design UI fin dall'inizio).
@@ -402,7 +440,7 @@ Manutenzione del verde, pulizia muri/strade, ritiro ingombranti (privati e pubbl
 6. **Dettaglio scheduler** di riempimento zone e regole di priorità.
 7. Recupero del dettaglio perso sul "2020+: si possono sostituire…".
 8. ~~Risoluzione degli effetti~~ — **deciso** (RUE-6, 2026-07-17): tutto si materializza al confine del tick, niente checkpoint sub-tick; i processi multi-giorno sono effetti programmati su tick futuri, la messa in scena resta alla grafica. Cadenze economiche e ordine dei sistemi nel tick in §2 «Risoluzione al tick e cadenze economiche».
-9. **Calendario e scenario come dati, non come codice** *(annotato 2026-07-17)*: l'implementazione RUE-11 introduce il calendario come factory method fisso (`SimCalendar.Milano1880()`) — scorciatoia accettabile finché esiste un solo scenario, ma è debito tecnico dichiarato. I calendari cambiano nel tempo (festività, cadenze lavorative) e la timeline storica prevede eventi che alterano le regole del gioco (WWI, WWII, autarchia anni '30 — già annotati in §7 come "da arricchire"). Il calendario/scenario andrà **data-driven** con lo stesso principio già deciso per veicoli/rifiuti/produttori (§2 «Requisiti trasversali», RUE-12): una timeline di eventi configurabile per scenario, non logica sparsa nel codice. Da risolvere insieme allo script di crescita della città (item 1) e alla pipeline mappe (RUE-9), quando arriva il secondo scenario o il primo evento storico vero — non bloccante ora con un solo scenario attivo.
+9. ~~Calendario e scenario come dati, non come codice~~ — **deciso** (RUE-20, 2026-07-19): lo scenario è un pacchetto (mappa + calendario + timeline + settings) e la timeline storica è una lista di effetti tipizzati su vocabolario chiuso, non codice; `SimCalendar.Milano1880()` diventerà il caricamento di `base:milano-1880`. Vedi §2 «Scenario e timeline storica: dati, non codice». Implementazione operativa quando arriva il secondo scenario o il primo evento storico vero — non bloccante ora.
 10. **Statistiche cumulative e overflow** *(annotato 2026-07-17)*: lo stato corrente sta comodo negli int64 (RUE-7), ma i contatori cumulativi di vita partita (tonnellate totali prodotte/raccolte/riciclate su 170 anni, metriche derivate che moltiplicano quantità × prezzi) vanno tenuti d'occhio. Quando arriveranno statistiche/analytics, usare accumulatori a 128 bit (`Int128`) per i totali cumulativi — non serve ora, nessun contatore cumulativo esiste ancora.
 
 ---
