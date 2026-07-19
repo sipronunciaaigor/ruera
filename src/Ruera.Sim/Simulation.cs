@@ -19,6 +19,7 @@ public sealed class Simulation
     // and sales slot into this array as they land. Plain array, run in order.
     private static readonly ISimSystem[] SystemPipeline =
     [
+        new EventsSystem(),
         new WasteProductionSystem(),
         new DayPlanSystem(),
         new ViolationSystem(),
@@ -42,14 +43,15 @@ public sealed class Simulation
     }
 
     /// <summary>Engine over a loaded world (map + entity definitions), default calendar.</summary>
-    public Simulation(ulong seed, StreetGraph graph, DefinitionRegistry definitions)
-        : this(seed, SimCalendar.Milano1880(), graph, definitions)
+    public Simulation(ulong seed, StreetGraph graph, DefinitionRegistry definitions, EventSettings? events = null)
+        : this(seed, SimCalendar.Milano1880(), graph, definitions, events)
     {
     }
 
-    public Simulation(ulong seed, SimCalendar calendar, StreetGraph? graph, DefinitionRegistry? definitions)
+    public Simulation(ulong seed, SimCalendar calendar, StreetGraph? graph, DefinitionRegistry? definitions,
+        EventSettings? events = null)
     {
-        State = new SimState(seed, calendar, graph, definitions);
+        State = new SimState(seed, calendar, graph, definitions, events);
     }
 
     public ulong Seed => State.Seed;
@@ -92,9 +94,9 @@ public sealed class Simulation
     /// have yet; application-time validation remains the deterministic authority.
     /// </summary>
     public static Simulation Replay(ulong seed, IEnumerable<CommandLogEntry> log, int ticks,
-        StreetGraph? graph = null, DefinitionRegistry? definitions = null)
+        StreetGraph? graph = null, DefinitionRegistry? definitions = null, EventSettings? events = null)
     {
-        var sim = new Simulation(seed, SimCalendar.Milano1880(), graph, definitions);
+        var sim = new Simulation(seed, SimCalendar.Milano1880(), graph, definitions, events);
         foreach (var entry in log)
             sim.ScheduleCore(entry.Day, entry.Command);
         sim.Advance(ticks);

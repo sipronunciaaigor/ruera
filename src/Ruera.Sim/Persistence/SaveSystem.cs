@@ -61,7 +61,7 @@ public static class SaveSystem
     }
 
     public static Simulation Load(byte[] data, StreetGraph? graph = null, DefinitionRegistry? definitions = null,
-        SimCalendar? calendar = null)
+        SimCalendar? calendar = null, EventSettings? events = null)
     {
         using var stream = new MemoryStream(data, writable: false);
         using var reader = new BinaryReader(stream);
@@ -117,7 +117,7 @@ public static class SaveSystem
         if (snapshot is null)
             throw new SaveLoadException("No snapshot for the saved tick.");
 
-        var sim = new Simulation(seed, calendar ?? SimCalendar.Milano1880(), graph, definitions);
+        var sim = new Simulation(seed, calendar ?? SimCalendar.Milano1880(), graph, definitions, events);
         using var snapshotStream = new MemoryStream(snapshot, writable: false);
         using var snapshotReader = new BinaryReader(snapshotStream);
         try
