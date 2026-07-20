@@ -5,16 +5,35 @@ using Ruera.Sim.World;
 namespace Ruera.Sim.Persistence;
 
 /// <summary>
-/// Content identity of the loaded scenario (map + entity definitions), stored
-/// in the save header (RUE-8): different data = different game, the same
-/// logic SimVersion applies to code. Deterministic: all collections are
-/// sorted by construction.
+/// Content identity of the loaded scenario, stored in the save header (RUE-8):
+/// different data = different game, the same logic SimVersion applies to code.
+/// Deterministic: all collections are sorted or in declared order by
+/// construction. The whole-bundle overload (RUE-38) folds the scenario config
+/// — calendar, timeline, events, declared end — in with the map and entity
+/// definitions, so modding any of them (e.g. a timeline entry) changes the
+/// scenario hash.
 /// </summary>
 public static class ScenarioHash
 {
+    /// <summary>Map + entity definitions identity (pre-scenario-package callers, and the basis of the bundle hash).</summary>
     public static ulong Compute(StreetGraph graph, DefinitionRegistry definitions)
     {
         var hasher = Fnv1a64.Create();
+        AddContent(ref hasher, graph, definitions);
+        return hasher.Hash;
+    }
+
+    /// <summary>Whole-bundle identity (RUE-38): scenario config first, then map + definitions.</summary>
+    public static ulong Compute(Scenario.Scenario scenario, StreetGraph graph, DefinitionRegistry definitions)
+    {
+        var hasher = Fnv1a64.Create();
+        scenario.AddToHash(ref hasher);
+        AddContent(ref hasher, graph, definitions);
+        return hasher.Hash;
+    }
+
+    private static void AddContent(ref Fnv1a64 hasher, StreetGraph graph, DefinitionRegistry definitions)
+    {
         hasher.Add(graph.MapId);
         hasher.Add(graph.Nodes.Count);
         foreach (var node in graph.Nodes)
@@ -86,7 +105,5 @@ public static class ScenarioHash
                 hasher.Add(production.GramsPerTick);
             }
         }
-
-        return hasher.Hash;
     }
 }

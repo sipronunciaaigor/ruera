@@ -3,35 +3,67 @@ namespace Ruera.Sim.Calendar;
 /// <summary>
 /// Calendar layer on top of the tick counter: one tick is one in-game day
 /// (DESIGN.md §2, §3). Pure integer Gregorian arithmetic — DateTime is banned
-/// in the sim. Sunday is the rest day (six-day working week, period-accurate
-/// for 1880–1930); fixed-date holidays are non-working. Movable feasts
-/// (Easter) are out of scope for now.
+/// in the sim. Rest days (Sunday by default: six-day working week,
+/// period-accurate for 1880–1930) and fixed-date holidays are non-working.
+/// Movable feasts (Easter) are out of scope for now.
+///
+/// The calendar is immutable scenario config, built from data (RUE-38). A
+/// scenario's <c>SetCalendar</c> timeline effects are compiled into
+/// <see cref="CalendarAmendment"/>s at load time, so date-driven changes
+/// (a new holiday, «sabato festivo») are deterministic and replay-stable
+/// without the calendar ever becoming mutable game state.
 /// </summary>
 public sealed class SimCalendar
 {
+    /// <summary>
+    /// Hard cap on simulated time (RUE-39): the last representable day is
+    /// 12345-12-31 (a deliberately silly number). The engine is year-agnostic
+    /// and only structurally limited by <see cref="SimDate.Year"/> being an
+    /// int32 (~2.1 billion); the cap makes that limit explicit rather than
+    /// accidental and keeps cumulative counters (DESIGN.md §15.10 → Int128)
+    /// safe. A scenario's end is otherwise optional — endless is first-class.
+    /// </summary>
+    public const int MaxYear = 12345;
+
     private readonly long _epochDays;
-    private readonly int[] _holidays; // fixed-date holidays encoded Month * 100 + Day, sorted
+    private readonly int[] _holidays;                 // base fixed holidays, Month*100+Day, sorted
+    private readonly bool[] _restDays;                // indexed by Weekday (0..6)
+    private readonly CalendarAmendment[] _amendments; // sorted ascending by EffectiveTick
 
     public SimCalendar(int epochYear, int epochMonth, int epochDay, IEnumerable<(int Month, int Day)> fixedHolidays)
+        : this(epochYear, epochMonth, epochDay, [Weekday.Sunday], fixedHolidays, [])
+    {
+    }
+
+    public SimCalendar(
+        int epochYear,
+        int epochMonth,
+        int epochDay,
+        IEnumerable<Weekday> restDays,
+        IEnumerable<(int Month, int Day)> fixedHolidays,
+        IEnumerable<CalendarAmendment> amendments)
     {
         _epochDays = DaysFromCivil(epochYear, epochMonth, epochDay);
+
+        _restDays = new bool[7];
+        foreach (var weekday in restDays)
+            _restDays[(int)weekday] = true;
 
         var encoded = new List<int>();
         foreach (var (month, day) in fixedHolidays)
         {
-            if (month is < 1 or > 12)
-                throw new ArgumentOutOfRangeException(nameof(fixedHolidays), month, "Holiday month out of range.");
-            if (day is < 1 or > 31)
-                throw new ArgumentOutOfRangeException(nameof(fixedHolidays), day, "Holiday day out of range.");
+            ValidateMonthDay(month, day);
             encoded.Add(month * 100 + day);
         }
 
-        _holidays = encoded.Distinct().Order().ToArray();
+        _holidays = [.. encoded.Distinct().Order()];
+        _amendments = [.. amendments.OrderBy(a => a.EffectiveTick)];
     }
 
     /// <summary>
     /// Default calendar for the vertical slice: tick 0 = 1880-01-01, Italian
-    /// fixed holidays including Sant'Ambrogio (Milano's patron saint).
+    /// fixed holidays including Sant'Ambrogio (Milano's patron saint). This is
+    /// the reference the loaded <c>base:milano-1880</c> scenario reproduces.
     /// </summary>
     public static SimCalendar Milano1880() => new(1880, 1, 1,
     [
@@ -54,12 +86,53 @@ public sealed class SimCalendar
         return new SimDate(year, month, day, weekday);
     }
 
+    /// <summary>The tick on which a given civil date falls (inverse of <see cref="DateAt"/>).</summary>
+    public long TickOf(int year, int month, int day) => DaysFromCivil(year, month, day) - _epochDays;
+
+    /// <summary>Whether a tick is at or before the hard time cap (RUE-39).</summary>
+    public bool IsWithinCap(long tick) => DateAt(tick).Year <= MaxYear;
+
+    /// <summary>Base-calendar holiday test (ignores timeline amendments; use the tick overload for the live rule).</summary>
     public bool IsHoliday(SimDate date) => Array.BinarySearch(_holidays, date.Month * 100 + date.Day) >= 0;
 
-    /// <summary>Working day = not Sunday and not a holiday (six-day working week).</summary>
-    public bool IsWorkingDay(SimDate date) => date.Weekday != Weekday.Sunday && !IsHoliday(date);
+    /// <summary>Base-calendar working-day test (ignores timeline amendments).</summary>
+    public bool IsWorkingDay(SimDate date) => !_restDays[(int)date.Weekday] && !IsHoliday(date);
 
-    public bool IsWorkingDay(long tick) => IsWorkingDay(DateAt(tick));
+    /// <summary>
+    /// Working day = not a rest day and not a holiday, with any timeline
+    /// amendments effective by <paramref name="tick"/> applied. This is the
+    /// authoritative rule the systems use (six-day working week by default).
+    /// </summary>
+    public bool IsWorkingDay(long tick)
+    {
+        var date = DateAt(tick);
+        var rest = _restDays[(int)date.Weekday];
+        var holiday = Array.BinarySearch(_holidays, date.Month * 100 + date.Day) >= 0;
+
+        if (_amendments.Length > 0 && !(rest && holiday))
+        {
+            var code = date.Month * 100 + date.Day;
+            foreach (var amendment in _amendments) // sorted ascending by EffectiveTick
+            {
+                if (amendment.EffectiveTick > tick)
+                    break;
+                if (amendment.Kind == CalendarAmendmentKind.AddHoliday && amendment.Value == code)
+                    holiday = true;
+                else if (amendment.Kind == CalendarAmendmentKind.AddRestDay && amendment.Value == (int)date.Weekday)
+                    rest = true;
+            }
+        }
+
+        return !rest && !holiday;
+    }
+
+    private static void ValidateMonthDay(int month, int day)
+    {
+        if (month is < 1 or > 12)
+            throw new ArgumentOutOfRangeException(nameof(month), month, "Holiday month out of range.");
+        if (day is < 1 or > 31)
+            throw new ArgumentOutOfRangeException(nameof(day), day, "Holiday day out of range.");
+    }
 
     // Howard Hinnant's "days from civil" / "civil from days" algorithms:
     // exact proleptic-Gregorian <-> days since 1970-01-01, integer-only.

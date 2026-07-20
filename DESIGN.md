@@ -178,7 +178,7 @@ Regole dal giorno uno:
 3. **Niente logica nei dati in V1**: i pacchetti dichiarano parametri, mai codice. Le mod di codice (sistemi custom, patching) sono materia post-V1/Ruera 2: dentro la sim richiederebbero le stesse regole di determinismo di §2, non esponibili in sicurezza oggi.
 4. **UI e rendering moddabili lato Godot**: skin, icone, viste non toccano sim né determinismo; si valutano quando esiste la UI (RUE-17+).
 
-### Scenario e timeline storica: dati, non codice *(deciso 2026-07-19 — RUE-20)*
+### Scenario e timeline storica: dati, non codice *(deciso 2026-07-19 — RUE-20; implementato — RUE-38)*
 
 **Decisione: lo scenario è l'unità di contenuto di primo livello — un pacchetto (§«Moddabilità») che raccoglie mappa, calendario, timeline storica e condizioni iniziali. La timeline è una lista di *effetti tipizzati e parametrizzati* su un vocabolario chiuso, non codice.** Chiude il debito §15.9: `SimCalendar.Milano1880()` diventa il caricamento del pacchetto `base:milano-1880`.
 
@@ -189,16 +189,20 @@ Il problema difficile è la **timeline storica di 170 anni in cui gli eventi cam
 - **Eventi di timeline (scriptati, RUE-20)**: deterministici, parte dell'identità dello scenario (entrano nell'hash dei dati di scenario, RUE-8). Sono i binari storici: si applicano a un tick noto (o su condizione dichiarata). Nessun RNG.
 - **Eventi stocastici (RUE-32)**: casuali, dallo stream RNG `Events` (guasti, ispezioni, bandi). L'`EventSettings` di RUE-32 **confluisce nel pacchetto scenario** come sua sezione.
 
-**Formato** (JSON, `formatVersion`, unità intere, id namespaced §«Moddabilità»):
+**Formato** (JSON, `formatVersion`, unità intere, id namespaced §«Moddabilità») — *implementato in RUE-38* (`data/scenarios/<pkg>/scenario.json`):
 
 ```
-scenario  = { id, name, map: <mapId>, calendar, startConditions, randomEvents, timeline: [ entry… ] }
-calendar  = { epoch: {y,m,d}, fixedHolidays: [{m,d}…], workingWeek: { restDays: [Sunday] } }
-entry     = { on: <trigger>, effects: [ effect… ] }        // effetti in ordine dichiarato = ordine di applicazione
-trigger   = { atDate: {y,m,d} }                            // caso storico comune; ordine deterministico per (tick, indice)
-          | { onCondition: <predicato chiuso> }            // riservato: predicati da vocabolario chiuso, non blocca la slice
-effect    = { type: <effectType>, …parametri }             // vocabolario chiuso, id append-only come i wire dei comandi
+scenario  = { formatVersion, id, name, map: <mapId>, calendar, timeline: [ entry… ], events?, end? }
+calendar  = { epochYear, epochMonth, epochDay, restDays: ["sunday"…], holidays: [ {month,day,name}… ] }
+entry     = { onYear, onMonth, onDay, effect }             // trigger = data civile; ordine dichiarato = ordine di applicazione
+effect    = { type: <effectType>, …parametri }             // vocabolario chiuso
+events?   = EventSettings di RUE-32 (assente = eventi off)  // gli stocastici confluiscono qui
+end?      = { year, month, day }                           // fine opzionale: obiettivo §12, non vincolo del motore (vedi «Bounds»)
 ```
+
+`onCondition` (trigger su predicato di stato invece che su data) è **riservato**: non è ancora un campo — si aggiunge quando un evento della slice lo richiede.
+
+**Stato d'implementazione (RUE-38)**: loader stretto (campi ed effetti sconosciuti rifiutati con errore che nomina il file); calendario *time-aware* — gli effetti `SetCalendar` sono compilati in **emendamenti datati** (festività / giorno di riposo con tick di decorrenza), così il calendario resta config immutabile e mai stato mutabile, e load/replay lo ricostruiscono identico. Solo `SetCalendar` è cablato end-to-end; gli altri effetti del vocabolario sono **riservati** (rifiutati con messaggio dedicato) finché non arriva l'evento di slice che li richiede. L'hash di scenario (RUE-8) è esteso all'**intero bundle** (config scenario + mappa + definizioni): moddare la timeline cambia l'hash. Pacchetto singolo; l'ordine di caricamento multi-pacchetto è RUE-36. Committato `base:milano-1880` che riproduce **esattamente** il calendario hardcoded (golden invariato).
 
 **Vocabolario chiuso degli effetti** (append-only; si estende quando arriva il contenuto che lo richiede):
 

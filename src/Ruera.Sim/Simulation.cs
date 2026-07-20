@@ -5,6 +5,8 @@ using Ruera.Sim.Hashing;
 using Ruera.Sim.Systems;
 using Ruera.Sim.World;
 
+using ScenarioPackage = Ruera.Sim.Scenario.Scenario;
+
 namespace Ruera.Sim;
 
 /// <summary>
@@ -52,6 +54,24 @@ public sealed class Simulation
         EventSettings? events = null)
     {
         State = new SimState(seed, calendar, graph, definitions, events);
+    }
+
+    /// <summary>
+    /// Builds an engine from a loaded scenario package (RUE-38): the calendar is
+    /// compiled from the scenario's data (epoch, holidays, rest days, and any
+    /// <c>SetCalendar</c> timeline effects) and events come from the scenario.
+    /// The scenario is retained so the save header carries the whole-bundle hash.
+    /// </summary>
+    public static Simulation FromScenario(ulong seed, ScenarioPackage scenario, StreetGraph graph,
+        DefinitionRegistry definitions)
+    {
+        ArgumentNullException.ThrowIfNull(scenario);
+        return new Simulation(seed, scenario, graph, definitions);
+    }
+
+    private Simulation(ulong seed, ScenarioPackage scenario, StreetGraph graph, DefinitionRegistry definitions)
+    {
+        State = new SimState(seed, scenario.BuildCalendar(), graph, definitions, scenario.Events, scenario);
     }
 
     public ulong Seed => State.Seed;
@@ -141,6 +161,13 @@ public sealed class Simulation
 
     private void AdvanceOneTick()
     {
+        // Hard time cap (RUE-39): refuse to simulate a day past 12345-12-31. A
+        // scenario end is otherwise optional (endless is first-class, DESIGN.md
+        // §2/§12); this only guards the structural int32-year ceiling.
+        if (!Calendar.IsWithinCap(State.Tick))
+            throw new InvalidOperationException(
+                $"Simulation reached the hard time cap ({SimCalendar.MaxYear}-12-31); it cannot advance beyond it (RUE-39).");
+
         State.BeginTick();
         ApplyDueCommands(); // commands at tick open (RUE-6)
         foreach (var system in SystemPipeline)

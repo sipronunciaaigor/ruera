@@ -10,7 +10,9 @@ public static class EngineVersion
     /// same seed + commands — i.e. whenever golden hashes are consciously
     /// updated. Replays and ghosts require an exact match.
     /// v1 = RUE-11 core, v2 = RUE-16 world state, v3 = RUE-14 economy,
-    /// v4 = RUE-31 route templates, v5 = RUE-32 events.
+    /// v4 = RUE-31 route templates, v5 = RUE-32 events. RUE-38 (data-driven
+    /// scenario + timeline) did not bump: the loaded base:milano-1880 reproduces
+    /// the hardcoded trajectory exactly, so golden hashes are unchanged.
     /// </summary>
     public const int SimVersion = 5;
 

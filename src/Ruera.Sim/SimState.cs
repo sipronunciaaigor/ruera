@@ -5,6 +5,8 @@ using Ruera.Sim.Persistence;
 using Ruera.Sim.Rng;
 using Ruera.Sim.World;
 
+using ScenarioPackage = Ruera.Sim.Scenario.Scenario;
+
 namespace Ruera.Sim;
 
 /// <summary>
@@ -66,14 +68,23 @@ public sealed class SimState
     /// <summary>Event configuration; null = events disabled (scenario config, like the calendar).</summary>
     public EventSettings? Events { get; }
 
+    /// <summary>
+    /// The scenario package this game was loaded from (RUE-38), when built via
+    /// <see cref="Simulation.FromScenario"/>. Null for the worldless/legacy
+    /// constructors. Used to compute the whole-bundle scenario hash in the save
+    /// header; the calendar and events above are derived from it.
+    /// </summary>
+    public ScenarioPackage? Scenario { get; }
+
     public SimState(ulong seed) : this(seed, SimCalendar.Milano1880(), null, null, null)
     {
     }
 
     public SimState(ulong seed, SimCalendar calendar, StreetGraph? graph, DefinitionRegistry? definitions,
-        EventSettings? events)
+        EventSettings? events, ScenarioPackage? scenario = null)
     {
         Events = events;
+        Scenario = scenario;
         if (graph is not null && definitions is not null)
         {
             _producers = [.. graph.Producers.Select(p =>
