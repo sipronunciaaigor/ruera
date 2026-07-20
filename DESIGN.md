@@ -222,6 +222,45 @@ Determinismo garantito: gli effetti si applicano al confine del tick nello step 
 
 **Non blocca la slice**: con un solo scenario `base:milano-1880` la timeline può essere vuota o minima (una-due norme igieniche). Implementazione operativa in un ticket dedicato quando arriva il secondo scenario o il primo evento storico vero; l'`onCondition` si concretizza solo se un evento della slice lo richiede.
 
+### Formato pacchetti mod, ordine di carico e override *(deciso 2026-07-20 — RUE-36)*
+
+**Decisione: chiude la regola 2 di «Moddabilità» — un pacchetto è una cartella con manifest + contenuto; N pacchetti si caricano in ordine deterministico derivato dalle dipendenze; l'override è sostituzione di intera entità per id, last-writer-wins; l'hash di scenario diventa l'hash dell'insieme ordinato dei pacchetti.** Solo contenuto (dati); le mod di codice restano post-V1 (regola 3).
+
+**Pacchetto** = cartella autocontenuta, contenuto scoperto per convenzione (porta un subset qualsiasi):
+
+```
+data/packages/<pkg>/
+  package.json                                  // manifest
+  definitions/{carriers,waste,producers}.json
+  maps/<name>.map.json
+  scenarios/<name>/scenario.json
+```
+
+**Manifest** (`package.json`, unità intere, `formatVersion`): `{ id, name, version (semver), author?, description?, gameVersion, dependencies: [ {id, minVersion}… ] }`. L'**`id` del manifest È il namespace**: ogni id di contenuto del pacchetto deve essere `id:nome` — lega al manifest la regola namespacing (§«Moddabilità»). Il pacchetto `base` è un pacchetto come gli altri, di norma radice del grafo.
+
+**Override / merge**:
+
+- Caso normale = **addizione pura**: gli id namespaced non collidono tra pacchetti diversi, quindi una mod che aggiunge `mymod:autocarro-elettrico` non tocca nulla.
+- **Override = sostituzione dell'intera entità per id, last-writer-wins nell'ordine di carico.** Niente patch a livello di campo in V1: ogni entità finale è un record completo e validato (determinismo e validazione restano semplici). Il patch di campo è un'estensione futura come *tipo di pacchetto* esplicito, senza rompere il replace. Nessun merge di collezioni interne (la `production` di un archetipo si sostituisce in blocco).
+- Una mod può dichiarare id in un namespace **non suo** (per overridare `base:gerla`) **solo se dichiara la dipendenza** dal pacchetto proprietario — così l'override è ordinato dopo la base. Id cross-namespace senza dipendenza = errore (niente collisioni accidentali né ordine indefinito). Id duplicato nello stesso pacchetto = errore (già nei loader).
+
+**Ordine di carico**: **derivato deterministicamente** da (insieme pacchetti + versioni + dipendenze), mai dall'ordine del filesystem o dall'orologio. **Sort topologico del DAG delle dipendenze**, con tiebreak stabile per id (ordinale) tra pacchetti indipendenti. Ciclo di dipendenze, dipendenza mancante o `minVersion` non soddisfatta = errore che nomina i pacchetti.
+
+**Hash di scenario esteso (RUE-8/RUE-38)**: l'header del save registra l'**insieme ordinato dei pacchetti** — per ciascuno in ordine canonico `(id, version, hash-contenuto)` — più l'id dello scenario attivo. Il bundle-hash di RUE-38 (config scenario + mappa + definizioni) diventa questo *package-set hash*. Il save memorizza anche la lista `(id, version)` così il load nomina con precisione quale pacchetto manca o non combacia. L'hash per-pacchetto usa lo stesso hashing canonico ordinato di oggi; il fold aggiunge l'ordine di carico.
+
+**Distribuzione (forma Steam Workshop)**: una cartella-pacchetto è zippabile ed è già la forma di un Workshop item (mapping id-pacchetto ↔ id-workshop, versione dal manifest). Le mod solo-contenuto sono dati puri (nessuna esecuzione di codice) → caricamento sicuro e automatico. La UI di gestione (abilita/disabilita, riordina entro i vincoli di dipendenza) vive lato Godot (post-V1); il formato la supporta già.
+
+**Ricadute sui loader e sul save (ticket operativi)**:
+
+- **Loader definizioni (succ. RUE-12)**: modo multi-pacchetto — carica e valida ogni pacchetto in isolamento, poi **merge in un unico registry** (replace-by-id nell'ordine di carico) con un **pass finale di cross-reference sul set unito** (un produttore mod può riferirsi a un rifiuto `base:`). Regola namespacing legata all'`id` del manifest.
+- **Loader mappe (succ. RUE-13)**: mappe scoperte per pacchetto, id namespaced; il campo `map` di uno scenario si risolve sul set unito — qui atterra anche il **bind-check `map` ↔ `MapId`** annotato in RUE-38.
+- **Loader scenario (RUE-38)**: i pacchetti richiesti da uno scenario diventano espliciti (dipendenze del pacchetto scenario); il bundle-hash diventa il package-set hash.
+- **Save header (succ. RUE-18)**: lista ordinata `(id, version)` + package-set hash; il load verifica il set caricato e nomina il pacchetto colpevole.
+
+**Fuori perimetro**: mod di codice (post-V1, §«Moddabilità» regola 3); patch a livello di campo; UI di gestione mod (con la UI, RUE-17+).
+
+**Non blocca la slice**: con il solo `base` il loader multi-pacchetto è un pacchetto radice singolo — la struttura `data/packages/base/` e il merge si costruiscono quando arriva il secondo pacchetto o la prima mod (ticket operativo dedicato).
+
 ---
 
 ## 3. Produttori e rifiuti
