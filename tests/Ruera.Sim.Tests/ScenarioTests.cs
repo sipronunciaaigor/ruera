@@ -18,13 +18,13 @@ namespace Ruera.Sim.Tests;
 public class ScenarioTests
 {
     private static readonly string BaseScenarioPath =
-        Path.Combine(AppContext.BaseDirectory, "data", "scenarios", "base-milano-1880", "scenario.json");
+        Path.Combine(AppContext.BaseDirectory, "data", "packages", "base", "scenarios", "base-milano-1880", "scenario.json");
 
     private static StreetGraph ToyGraph() =>
-        MapLoader.LoadFromFile(Path.Combine(AppContext.BaseDirectory, "data", "maps", "toy.map.json"), SliceDefinitions());
+        MapLoader.LoadFromFile(Path.Combine(AppContext.BaseDirectory, "data", "packages", "base", "maps", "toy.map.json"), SliceDefinitions());
 
     private static DefinitionRegistry SliceDefinitions() =>
-        DefinitionLoader.LoadFromDirectory(Path.Combine(AppContext.BaseDirectory, "data", "definitions"));
+        DefinitionLoader.LoadFromDirectory(Path.Combine(AppContext.BaseDirectory, "data", "packages", "base", "definitions"));
 
     [Fact]
     public void BaseScenario_LoadsAndReproducesHardcodedCalendar()

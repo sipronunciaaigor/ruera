@@ -6,10 +6,10 @@ namespace Ruera.Sim.Tests;
 public class StreetGraphTests
 {
     private static string ToyMapPath =>
-        Path.Combine(AppContext.BaseDirectory, "data", "maps", "toy.map.json");
+        Path.Combine(AppContext.BaseDirectory, "data", "packages", "base", "maps", "toy.map.json");
 
     private static DefinitionRegistry SliceDefinitions =>
-        DefinitionLoader.LoadFromDirectory(Path.Combine(AppContext.BaseDirectory, "data", "definitions"));
+        DefinitionLoader.LoadFromDirectory(Path.Combine(AppContext.BaseDirectory, "data", "packages", "base", "definitions"));
 
     private const string MinimalMapJson = """
         {
