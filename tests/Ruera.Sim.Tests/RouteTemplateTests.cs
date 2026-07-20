@@ -13,10 +13,10 @@ namespace Ruera.Sim.Tests;
 public class RouteTemplateTests
 {
     private static readonly StreetGraph Graph =
-        MapLoader.LoadFromFile(Path.Combine(AppContext.BaseDirectory, "data", "maps", "toy.map.json"));
+        MapLoader.LoadFromFile(Path.Combine(AppContext.BaseDirectory, "data", "packages", "base", "maps", "toy.map.json"));
 
     private static readonly DefinitionRegistry Definitions =
-        DefinitionLoader.LoadFromDirectory(Path.Combine(AppContext.BaseDirectory, "data", "definitions"));
+        DefinitionLoader.LoadFromDirectory(Path.Combine(AppContext.BaseDirectory, "data", "packages", "base", "definitions"));
 
     private static Simulation LineSim(byte mask, int carriers = 1)
     {

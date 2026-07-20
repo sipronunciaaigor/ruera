@@ -5,6 +5,7 @@ using Ruera.Sim.Calendar;
 using Ruera.Sim.Commands;
 using Ruera.Sim.Data;
 using Ruera.Sim.Hashing;
+using Ruera.Sim.Packaging;
 using Ruera.Sim.World;
 
 using ScenarioPackage = Ruera.Sim.Scenario.Scenario;
@@ -25,7 +26,7 @@ public sealed class SaveLoadException(string message) : Exception(message);
 public static class SaveSystem
 {
     private const string Magic = "RUERA";
-    private const ushort ContainerVersion = 1;
+    private const ushort ContainerVersion = 2; // v2: active scenario id + ordered package set (RUE-40)
 
     public static byte[] Save(Simulation sim) =>
         Save(sim, EngineVersion.SimVersion, EngineVersion.StateSchemaVersion);
@@ -42,6 +43,22 @@ public static class SaveSystem
         writer.Write(stateSchemaVersion);
         writer.Write(state.Graph?.MapId ?? "");
         writer.Write(ComputeScenarioHash(state));
+
+        // Package-set identity (RUE-40): the active scenario id, then the ordered
+        // (id, version) list and the folded content hash. Empty for worldless /
+        // single-scenario saves (package count 0).
+        writer.Write(state.Scenario?.Id ?? "");
+        var packageList = state.Packages?.Packages ?? [];
+        writer.Write(packageList.Count);
+        foreach (var (id, version) in packageList)
+        {
+            writer.Write(id);
+            writer.Write(version.Major);
+            writer.Write(version.Minor);
+            writer.Write(version.Patch);
+        }
+
+        writer.Write(state.Packages?.Hash ?? 0UL);
         writer.Write(state.Seed);
         writer.Write(state.Tick);
         writer.Write(sim.StateHash());
@@ -63,7 +80,8 @@ public static class SaveSystem
     }
 
     public static Simulation Load(byte[] data, StreetGraph? graph = null, DefinitionRegistry? definitions = null,
-        SimCalendar? calendar = null, EventSettings? events = null, ScenarioPackage? scenario = null)
+        SimCalendar? calendar = null, EventSettings? events = null, ScenarioPackage? scenario = null,
+        PackageSetIdentity? packages = null)
     {
         using var stream = new MemoryStream(data, writable: false);
         using var reader = new BinaryReader(stream);
@@ -84,6 +102,9 @@ public static class SaveSystem
 
         var scenarioId = reader.ReadString();
         var scenarioHash = reader.ReadUInt64();
+        var activeScenarioId = reader.ReadString();
+        var (savedPackages, savedPackageHash) = ReadPackageSection(reader);
+
         if (scenarioId.Length > 0)
         {
             if (graph is null || definitions is null)
@@ -96,10 +117,23 @@ public static class SaveSystem
             if (graph.MapId != scenarioId || expectedHash != scenarioHash)
                 throw new SaveLoadException(Invariant(
                     $"Save was created with different scenario data ('{scenarioId}'): map, definitions, or scenario config do not match."));
+            if (scenario is not null && activeScenarioId.Length > 0 && !string.Equals(activeScenarioId, scenario.Id, StringComparison.Ordinal))
+                throw new SaveLoadException(Invariant($"Save's active scenario is '{activeScenarioId}', not '{scenario.Id}'."));
         }
         else if (graph is not null || definitions is not null)
         {
             throw new SaveLoadException("Save is worldless but a scenario was provided.");
+        }
+
+        // Package-set identity (RUE-40): when the caller supplies the loaded set,
+        // the ordered (id, version) list is compared element-wise so the error
+        // names precisely which package is missing, extra, or at the wrong version.
+        if (packages is not null && savedPackages.Count > 0)
+        {
+            VerifyPackages(savedPackages, packages.Packages);
+            if (savedPackageHash != packages.Hash)
+                throw new SaveLoadException(
+                    "Save package set matches by id and version but its content hash differs (a package changed without a version bump).");
         }
 
         var seed = reader.ReadUInt64();
@@ -127,7 +161,7 @@ public static class SaveSystem
         // A scenario package rebuilds the calendar (and events) from its data and
         // is retained so a re-save carries the same whole-bundle hash (RUE-38).
         var sim = scenario is not null && graph is not null
-            ? Simulation.FromScenario(seed, scenario, graph, definitions!)
+            ? Simulation.FromScenario(seed, scenario, graph, definitions!, packages)
             : new Simulation(seed, calendar ?? SimCalendar.Milano1880(), graph, definitions, events);
         using var snapshotStream = new MemoryStream(snapshot, writable: false);
         using var snapshotReader = new BinaryReader(snapshotStream);
@@ -147,6 +181,39 @@ public static class SaveSystem
 
         sim.RestoreLog(entries);
         return sim;
+    }
+
+    private static (List<(string Id, SemVer Version)> Packages, ulong Hash) ReadPackageSection(BinaryReader reader)
+    {
+        var count = reader.ReadInt32();
+        var packages = new List<(string, SemVer)>(count);
+        for (var i = 0; i < count; i++)
+        {
+            var id = reader.ReadString();
+            var version = new SemVer(reader.ReadInt32(), reader.ReadInt32(), reader.ReadInt32());
+            packages.Add((id, version));
+        }
+
+        return (packages, reader.ReadUInt64());
+    }
+
+    private static void VerifyPackages(
+        IReadOnlyList<(string Id, SemVer Version)> saved, IReadOnlyList<(string Id, SemVer Version)> loaded)
+    {
+        for (var i = 0; i < saved.Count; i++)
+        {
+            if (i >= loaded.Count)
+                throw new SaveLoadException(Invariant($"Save requires package '{saved[i].Id}' {saved[i].Version}, which is not loaded."));
+            if (!string.Equals(saved[i].Id, loaded[i].Id, StringComparison.Ordinal))
+                throw new SaveLoadException(Invariant(
+                    $"Save has package '{saved[i].Id}' at position {i + 1}, but '{loaded[i].Id}' is loaded (package set or order differs)."));
+            if (saved[i].Version != loaded[i].Version)
+                throw new SaveLoadException(Invariant(
+                    $"Save requires package '{saved[i].Id}' {saved[i].Version}, but {loaded[i].Version} is loaded."));
+        }
+
+        if (loaded.Count > saved.Count)
+            throw new SaveLoadException(Invariant($"Load has extra package '{loaded[saved.Count].Id}' not present in the save."));
     }
 
     private static ulong ComputeScenarioHash(SimState state)

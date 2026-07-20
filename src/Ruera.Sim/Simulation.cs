@@ -63,15 +63,16 @@ public sealed class Simulation
     /// The scenario is retained so the save header carries the whole-bundle hash.
     /// </summary>
     public static Simulation FromScenario(ulong seed, ScenarioPackage scenario, StreetGraph graph,
-        DefinitionRegistry definitions)
+        DefinitionRegistry definitions, Packaging.PackageSetIdentity? packages = null)
     {
         ArgumentNullException.ThrowIfNull(scenario);
-        return new Simulation(seed, scenario, graph, definitions);
+        return new Simulation(seed, scenario, graph, definitions, packages);
     }
 
-    private Simulation(ulong seed, ScenarioPackage scenario, StreetGraph graph, DefinitionRegistry definitions)
+    private Simulation(ulong seed, ScenarioPackage scenario, StreetGraph graph, DefinitionRegistry definitions,
+        Packaging.PackageSetIdentity? packages)
     {
-        State = new SimState(seed, scenario.BuildCalendar(), graph, definitions, scenario.Events, scenario);
+        State = new SimState(seed, scenario.BuildCalendar(), graph, definitions, scenario.Events, scenario, packages);
     }
 
     public ulong Seed => State.Seed;

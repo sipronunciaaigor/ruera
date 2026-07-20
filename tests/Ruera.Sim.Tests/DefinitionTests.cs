@@ -5,7 +5,7 @@ namespace Ruera.Sim.Tests;
 public class DefinitionTests
 {
     private static string SliceDataDirectory =>
-        Path.Combine(AppContext.BaseDirectory, "data", "definitions");
+        Path.Combine(AppContext.BaseDirectory, "data", "packages", "base", "definitions");
 
     private const string MinimalWasteJson = """
         { "formatVersion": 1, "wasteTypes": [ { "id": "base:mixed", "name": "Mixed", "baseSaleCentsPerKg": 2 } ] }

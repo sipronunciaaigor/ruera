@@ -222,7 +222,7 @@ Determinismo garantito: gli effetti si applicano al confine del tick nello step 
 
 **Non blocca la slice**: con un solo scenario `base:milano-1880` la timeline può essere vuota o minima (una-due norme igieniche). Implementazione operativa in un ticket dedicato quando arriva il secondo scenario o il primo evento storico vero; l'`onCondition` si concretizza solo se un evento della slice lo richiede.
 
-### Formato pacchetti mod, ordine di carico e override *(deciso 2026-07-20 — RUE-36)*
+### Formato pacchetti mod, ordine di carico e override *(deciso 2026-07-20 — RUE-36; implementato — RUE-40)*
 
 **Decisione: chiude la regola 2 di «Moddabilità» — un pacchetto è una cartella con manifest + contenuto; N pacchetti si caricano in ordine deterministico derivato dalle dipendenze; l'override è sostituzione di intera entità per id, last-writer-wins; l'hash di scenario diventa l'hash dell'insieme ordinato dei pacchetti.** Solo contenuto (dati); le mod di codice restano post-V1 (regola 3).
 
@@ -260,6 +260,8 @@ data/packages/<pkg>/
 **Fuori perimetro**: mod di codice (post-V1, §«Moddabilità» regola 3); patch a livello di campo; UI di gestione mod (con la UI, RUE-17+).
 
 **Non blocca la slice**: con il solo `base` il loader multi-pacchetto è un pacchetto radice singolo — la struttura `data/packages/base/` e il merge si costruiscono quando arriva il secondo pacchetto o la prima mod (ticket operativo dedicato).
+
+**Stato d'implementazione (RUE-40)**: contenuto base spostato in `data/packages/base/` (definitions/maps/scenarios) con manifest `package.json` (`id`, `name`, `version` semver, `gameVersion`, `dependencies`). `ContentLoader` scopre i pacchetti, valida le dipendenze (esistenza + `minVersion`), ordina con sort topologico deterministico (dipendenze prima, tiebreak per id), fonde le definizioni **replace-by-id** e risolve il cross-reference archetipo→rifiuto sul set unito; la regola di namespace (id dichiarabili solo nel proprio namespace o in quello di una dipendenza) blocca gli override cross-namespace non dichiarati. Mappe e scenari fusi per id; il `map` di uno scenario è bind-checkato sul set unito. Il save (container v2) porta lo scenario attivo + la lista ordinata `(id, version)` e un hash del set; il load confronta la lista elemento per elemento e nomina il pacchetto mancante o a versione errata. **Scostamento minore dalla decisione**: l'hash del set è `(id, version)` ordinati + hash del contenuto *unito* (non un content-hash per-pacchetto) — stessa identità e stesso fallimento preciso, meno codice. Golden invariato.
 
 ---
 

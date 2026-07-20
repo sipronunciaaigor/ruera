@@ -9,10 +9,10 @@ namespace Ruera.Sim.Tests;
 public class SaveLoadTests
 {
     private static readonly StreetGraph Graph =
-        MapLoader.LoadFromFile(Path.Combine(AppContext.BaseDirectory, "data", "maps", "toy.map.json"));
+        MapLoader.LoadFromFile(Path.Combine(AppContext.BaseDirectory, "data", "packages", "base", "maps", "toy.map.json"));
 
     private static readonly DefinitionRegistry Definitions =
-        DefinitionLoader.LoadFromDirectory(Path.Combine(AppContext.BaseDirectory, "data", "definitions"));
+        DefinitionLoader.LoadFromDirectory(Path.Combine(AppContext.BaseDirectory, "data", "packages", "base", "definitions"));
 
     private static Simulation ScriptedSim(ulong seed = 2026)
     {
@@ -108,11 +108,11 @@ public class SaveLoadTests
     public void DifferentScenarioData_IsRejected()
     {
         var bytes = SaveSystem.Save(ScriptedSim());
-        var carriersJson = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "data", "definitions", "carriers.json"))
+        var carriersJson = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "data", "packages", "base", "definitions", "carriers.json"))
             .Replace("\"capacityGrams\": 25000", "\"capacityGrams\": 26000");
         var tweaked = DefinitionLoader.Load(carriersJson,
-            File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "data", "definitions", "waste.json")),
-            File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "data", "definitions", "producers.json")));
+            File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "data", "packages", "base", "definitions", "waste.json")),
+            File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "data", "packages", "base", "definitions", "producers.json")));
 
         var exception = Assert.Throws<SaveLoadException>(() => SaveSystem.Load(bytes, Graph, tweaked));
 

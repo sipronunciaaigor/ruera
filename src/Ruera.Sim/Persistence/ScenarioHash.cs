@@ -34,6 +34,13 @@ public static class ScenarioHash
 
     private static void AddContent(ref Fnv1a64 hasher, StreetGraph graph, DefinitionRegistry definitions)
     {
+        AddGraph(ref hasher, graph);
+        AddDefinitions(ref hasher, definitions);
+    }
+
+    /// <summary>Feeds one map's canonical fields into a hasher (reused by the package-set hash, RUE-40).</summary>
+    internal static void AddGraph(ref Fnv1a64 hasher, StreetGraph graph)
+    {
         hasher.Add(graph.MapId);
         hasher.Add(graph.Nodes.Count);
         foreach (var node in graph.Nodes)
@@ -66,7 +73,11 @@ public static class ScenarioHash
             hasher.Add(producer.Edge);
             hasher.Add(producer.Archetype);
         }
+    }
 
+    /// <summary>Feeds the merged entity definitions into a hasher (reused by the package-set hash, RUE-40).</summary>
+    internal static void AddDefinitions(ref Fnv1a64 hasher, DefinitionRegistry definitions)
+    {
         hasher.Add(definitions.Carriers.Count);
         foreach (var carrier in definitions.Carriers)
         {

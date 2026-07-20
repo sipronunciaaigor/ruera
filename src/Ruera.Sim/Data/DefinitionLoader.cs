@@ -34,18 +34,41 @@ public static class DefinitionLoader
 
     public static DefinitionRegistry Load(string carriersJson, string wasteJson, string producersJson)
     {
-        var carriers = Parse<CarriersFile>(carriersJson, "carriers.json");
-        var waste = Parse<WasteFile>(wasteJson, "waste.json");
-        var producers = Parse<ProducersFile>(producersJson, "producers.json");
+        var fragment = LoadFragment(carriersJson, wasteJson, producersJson);
+        return BuildRegistry(fragment.Carriers, fragment.WasteTypes, fragment.Archetypes);
+    }
 
-        ValidateCarriers(carriers.Carriers);
-        ValidateWaste(waste.WasteTypes);
-        ValidateArchetypes(producers.Archetypes, waste.WasteTypes);
+    /// <summary>
+    /// Parses and intrinsically validates one package's definition files, but
+    /// defers the archetype→waste cross-reference (RUE-40): that resolves against
+    /// the merged set across packages, so a mod producer may reference a base
+    /// waste. Missing files yield empty lists — a package need not ship all three.
+    /// </summary>
+    internal static DefinitionFragment LoadFragment(string? carriersJson, string? wasteJson, string? producersJson)
+    {
+        var carriers = carriersJson is null ? [] : Parse<CarriersFile>(carriersJson, "carriers.json").Carriers;
+        var waste = wasteJson is null ? [] : Parse<WasteFile>(wasteJson, "waste.json").WasteTypes;
+        var archetypes = producersJson is null ? [] : Parse<ProducersFile>(producersJson, "producers.json").Archetypes;
 
-        return new DefinitionRegistry(
-            [.. carriers.Carriers],
-            [.. waste.WasteTypes],
-            [.. producers.Archetypes]);
+        ValidateCarriers(carriers);
+        ValidateWaste(waste);
+        ValidateArchetypesIntrinsic(archetypes);
+
+        return new DefinitionFragment(carriers, waste, archetypes);
+    }
+
+    /// <summary>
+    /// Validates archetype→waste references over a (possibly cross-package
+    /// merged) waste set and builds the immutable registry. The intrinsic
+    /// per-entity checks are assumed already done by <see cref="LoadFragment"/>.
+    /// </summary>
+    internal static DefinitionRegistry BuildRegistry(
+        IReadOnlyList<CarrierDefinition> carriers,
+        IReadOnlyList<WasteDefinition> wasteTypes,
+        IReadOnlyList<ProducerArchetype> archetypes)
+    {
+        ValidateArchetypeWasteRefs(archetypes, [.. wasteTypes.Select(w => w.Id)]);
+        return new DefinitionRegistry([.. carriers], [.. wasteTypes], [.. archetypes]);
     }
 
     private static string ReadFile(string directory, string fileName)
@@ -108,10 +131,9 @@ public static class DefinitionLoader
         }
     }
 
-    private static void ValidateArchetypes(List<ProducerArchetype> archetypes, List<WasteDefinition> wasteTypes)
+    private static void ValidateArchetypesIntrinsic(List<ProducerArchetype> archetypes)
     {
         RequireUniqueIds(archetypes.Select(a => a.Id), "producers.json");
-        var wasteIds = wasteTypes.Select(w => w.Id).ToArray();
         foreach (var archetype in archetypes)
         {
             Require(!string.IsNullOrWhiteSpace(archetype.Id), "producers.json", archetype.Id, "id must not be empty");
@@ -125,13 +147,24 @@ public static class DefinitionLoader
             var seenWaste = new List<string>();
             foreach (var production in archetype.Production)
             {
-                Require(wasteIds.Contains(production.Waste, StringComparer.Ordinal), "producers.json", archetype.Id,
-                    Invariant($"production references unknown waste type '{production.Waste}'"));
                 Require(!seenWaste.Contains(production.Waste, StringComparer.Ordinal), "producers.json", archetype.Id,
                     Invariant($"production lists waste type '{production.Waste}' more than once"));
                 Require(production.GramsPerTick >= 0, "producers.json", archetype.Id,
                     Invariant($"gramsPerTick must be >= 0 (was {production.GramsPerTick})"));
                 seenWaste.Add(production.Waste);
+            }
+        }
+    }
+
+    /// <summary>The archetype→waste cross-reference, over the merged waste set (RUE-40).</summary>
+    private static void ValidateArchetypeWasteRefs(IReadOnlyList<ProducerArchetype> archetypes, string[] wasteIds)
+    {
+        foreach (var archetype in archetypes)
+        {
+            foreach (var production in archetype.Production)
+            {
+                Require(wasteIds.Contains(production.Waste, StringComparer.Ordinal), "producers.json", archetype.Id,
+                    Invariant($"production references unknown waste type '{production.Waste}'"));
             }
         }
     }
