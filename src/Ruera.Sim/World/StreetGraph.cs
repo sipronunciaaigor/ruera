@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Globalization;
 
 namespace Ruera.Sim.World;
@@ -75,38 +76,71 @@ public sealed class StreetGraph
 
     public MapProducer Producer(int id) => _producers[Find(_producerIds, id, "producer")];
 
-    /// <summary>Length of the shortest route between two nodes.</summary>
-    public Meters Distance(int fromNodeId, int toNodeId) => new(Solve(fromNodeId, toNodeId).Distance);
+    /// <summary>
+    /// Length of the shortest route between two nodes. This is on the per-tick
+    /// hot path (the day-plan tour, RUE-37): Dijkstra's working buffers are
+    /// rented from the shared array pool, so a steady-state advance allocates
+    /// nothing here. The algorithm — and therefore every distance — is identical.
+    /// </summary>
+    public Meters Distance(int fromNodeId, int toNodeId)
+    {
+        var source = Find(_nodeIds, fromNodeId, "node");
+        var target = Find(_nodeIds, toNodeId, "node");
+        var count = _nodes.Length;
+
+        var distance = ArrayPool<long>.Shared.Rent(count);
+        var previous = ArrayPool<int>.Shared.Rent(count);
+        var visited = ArrayPool<bool>.Shared.Rent(count);
+        try
+        {
+            RunDijkstra(source, target, distance, previous, visited);
+            return new Meters(distance[target]);
+        }
+        finally
+        {
+            ArrayPool<long>.Shared.Return(distance);
+            ArrayPool<int>.Shared.Return(previous);
+            ArrayPool<bool>.Shared.Return(visited);
+        }
+    }
 
     /// <summary>Node ids of the shortest route, endpoints included. Ties resolve to the lowest node id.</summary>
     public IReadOnlyList<int> ShortestPath(int fromNodeId, int toNodeId)
     {
-        var (_, previous, targetIndex) = Solve(fromNodeId, toNodeId);
+        var source = Find(_nodeIds, fromNodeId, "node");
+        var target = Find(_nodeIds, toNodeId, "node");
+
+        // Cold path (routing preview / debug, not per-tick): plain allocation.
+        var distance = new long[_nodes.Length];
+        var previous = new int[_nodes.Length];
+        var visited = new bool[_nodes.Length];
+
+        RunDijkstra(source, target, distance, previous, visited);
+
         var path = new List<int>();
-        for (var index = targetIndex; index >= 0; index = previous[index])
+        for (var index = target; index >= 0; index = previous[index])
             path.Add(_nodeIds[index]);
         path.Reverse();
         return path;
     }
 
-    private (long Distance, int[] Previous, int TargetIndex) Solve(int fromNodeId, int toNodeId)
+    /// <summary>
+    /// Deterministic Dijkstra into caller-provided buffers (length >= node count;
+    /// only the first node-count entries are used, so pooled over-sized buffers
+    /// are fine). Linear scan for the min: no heap, no unspecified tie order.
+    /// </summary>
+    private void RunDijkstra(int source, int target, long[] distance, int[] previous, bool[] visited)
     {
-        var source = Find(_nodeIds, fromNodeId, "node");
-        var target = Find(_nodeIds, toNodeId, "node");
-
-        // Dijkstra with a deterministic linear scan: the unvisited node with the
-        // smallest (distance, index) wins — no heap, no unspecified tie order.
-        var distance = new long[_nodes.Length];
-        var previous = new int[_nodes.Length];
-        var visited = new bool[_nodes.Length];
-        Array.Fill(distance, long.MaxValue);
-        Array.Fill(previous, -1);
+        var count = _nodes.Length;
+        Array.Fill(distance, long.MaxValue, 0, count);
+        Array.Fill(previous, -1, 0, count);
+        Array.Clear(visited, 0, count);
         distance[source] = 0;
 
         while (true)
         {
             var current = -1;
-            for (var i = 0; i < _nodes.Length; i++)
+            for (var i = 0; i < count; i++)
             {
                 if (!visited[i] && distance[i] < long.MaxValue && (current < 0 || distance[i] < distance[current]))
                     current = i;
@@ -115,7 +149,7 @@ public sealed class StreetGraph
             if (current < 0)
                 throw new InvalidOperationException("Target unreachable — validated maps are connected.");
             if (current == target)
-                return (distance[target], previous, target);
+                return;
 
             visited[current] = true;
             foreach (var (neighbor, length) in _adjacency[current])
