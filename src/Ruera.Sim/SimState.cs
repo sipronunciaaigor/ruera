@@ -76,15 +76,24 @@ public sealed class SimState
     /// </summary>
     public ScenarioPackage? Scenario { get; }
 
+    /// <summary>
+    /// Identity of the ordered package set this game was loaded from (RUE-40),
+    /// when built through <see cref="Packaging.LoadedPackages.NewSimulation"/>.
+    /// Null for single-scenario or worldless/legacy construction. Written to the
+    /// save header so a load can verify the exact package set + versions.
+    /// </summary>
+    public Packaging.PackageSetIdentity? Packages { get; }
+
     public SimState(ulong seed) : this(seed, SimCalendar.Milano1880(), null, null, null)
     {
     }
 
     public SimState(ulong seed, SimCalendar calendar, StreetGraph? graph, DefinitionRegistry? definitions,
-        EventSettings? events, ScenarioPackage? scenario = null)
+        EventSettings? events, ScenarioPackage? scenario = null, Packaging.PackageSetIdentity? packages = null)
     {
         Events = events;
         Scenario = scenario;
+        Packages = packages;
         if (graph is not null && definitions is not null)
         {
             _producers = [.. graph.Producers.Select(p =>

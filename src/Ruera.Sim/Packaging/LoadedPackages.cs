@@ -1,6 +1,7 @@
 using System.Globalization;
 
 using Ruera.Sim.Data;
+using Ruera.Sim.Persistence;
 using Ruera.Sim.World;
 
 using ScenarioPackage = Ruera.Sim.Scenario.Scenario;
@@ -41,6 +42,9 @@ public sealed class LoadedPackages
     /// <summary>Identity of the ordered package set + merged content (extends the RUE-38 bundle hash).</summary>
     public ulong PackageSetHash { get; }
 
+    /// <summary>The package-set identity carried into the save header (RUE-40).</summary>
+    public PackageSetIdentity Identity => new(Order, PackageSetHash);
+
     public IReadOnlyCollection<string> MapIds => _maps.Keys;
 
     public IReadOnlyCollection<string> ScenarioIds => _scenarios.Keys;
@@ -63,7 +67,18 @@ public sealed class LoadedPackages
     public Simulation NewSimulation(ulong seed, string scenarioId)
     {
         var scenario = Scenario(scenarioId);
-        return Simulation.FromScenario(seed, scenario, Map(scenario.MapRef), Definitions);
+        return Simulation.FromScenario(seed, scenario, Map(scenario.MapRef), Definitions, Identity);
+    }
+
+    /// <summary>
+    /// Restores a save made from this package set (RUE-40). The save header's
+    /// package set is verified against this loaded set — a missing package or a
+    /// version mismatch fails with a message naming the offender.
+    /// </summary>
+    public Simulation LoadSave(byte[] data, string scenarioId)
+    {
+        var scenario = Scenario(scenarioId);
+        return SaveSystem.Load(data, Map(scenario.MapRef), Definitions, scenario: scenario, packages: Identity);
     }
 
     private static string Invariant(FormattableString message) => FormattableString.Invariant(message);

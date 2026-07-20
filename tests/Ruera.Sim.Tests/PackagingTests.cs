@@ -1,4 +1,5 @@
 using Ruera.Sim.Packaging;
+using Ruera.Sim.Persistence;
 
 namespace Ruera.Sim.Tests;
 
@@ -157,6 +158,52 @@ public class PackagingTests
         var exception = Assert.Throws<PackageLoadException>(() => PackageManifest.Load(
             """{ "formatVersion": 1, "id": "base:x", "name": "Base", "version": "1.0.0", "gameVersion": "0.1.0", "dependencies": [] }"""));
         Assert.Contains("bare namespace token", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void SaveAndLoad_ThroughPackageSet_RoundTrips()
+    {
+        var loaded = ContentLoader.LoadFromDirectory(BasePackagesRoot);
+        var sim = loaded.NewSimulation(5UL, "base:milano-1880");
+        sim.Advance(120);
+        var expected = sim.StateHash();
+
+        var restored = loaded.LoadSave(SaveSystem.Save(sim), "base:milano-1880");
+
+        Assert.Equal(expected, restored.StateHash());
+    }
+
+    [Fact]
+    public void LoadSave_WithDifferentPackageVersion_FailsNamingThePackage()
+    {
+        Run(root =>
+        {
+            // A save made from base 1.0.0…
+            var original = ContentLoader.LoadFromDirectory(BasePackagesRoot);
+            var sim = original.NewSimulation(3UL, "base:milano-1880");
+            sim.Advance(20);
+            var bytes = SaveSystem.Save(sim);
+
+            // …cannot be loaded against the same package bumped to 1.0.1.
+            var bumped = Path.Combine(root, "base");
+            CopyDirectory(Path.Combine(BasePackagesRoot, "base"), bumped);
+            var manifest = Path.Combine(bumped, "package.json");
+            File.WriteAllText(manifest, File.ReadAllText(manifest).Replace("\"1.0.0\"", "\"1.0.1\"", StringComparison.Ordinal));
+
+            var loaded = ContentLoader.LoadFromDirectory(root);
+            var exception = Assert.Throws<SaveLoadException>(() => loaded.LoadSave(bytes, "base:milano-1880"));
+            Assert.Contains("base", exception.Message, StringComparison.Ordinal);
+            Assert.Contains("1.0.0", exception.Message, StringComparison.Ordinal);
+        });
+    }
+
+    private static void CopyDirectory(string source, string destination)
+    {
+        Directory.CreateDirectory(destination);
+        foreach (var directory in Directory.GetDirectories(source, "*", SearchOption.AllDirectories))
+            Directory.CreateDirectory(directory.Replace(source, destination, StringComparison.Ordinal));
+        foreach (var file in Directory.GetFiles(source, "*", SearchOption.AllDirectories))
+            File.Copy(file, file.Replace(source, destination, StringComparison.Ordinal), overwrite: true);
     }
 
     private static void Run(Action<string> test)
