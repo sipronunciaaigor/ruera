@@ -7,6 +7,8 @@ using Ruera.Sim.Data;
 using Ruera.Sim.Hashing;
 using Ruera.Sim.World;
 
+using ScenarioPackage = Ruera.Sim.Scenario.Scenario;
+
 namespace Ruera.Sim.Persistence;
 
 /// <summary>Raised when a save file is corrupt, incompatible, or from a different scenario.</summary>
@@ -39,7 +41,7 @@ public static class SaveSystem
         writer.Write(simVersion);
         writer.Write(stateSchemaVersion);
         writer.Write(state.Graph?.MapId ?? "");
-        writer.Write(state.Graph is not null ? ScenarioHash.Compute(state.Graph, state.Definitions!) : 0UL);
+        writer.Write(ComputeScenarioHash(state));
         writer.Write(state.Seed);
         writer.Write(state.Tick);
         writer.Write(sim.StateHash());
@@ -61,7 +63,7 @@ public static class SaveSystem
     }
 
     public static Simulation Load(byte[] data, StreetGraph? graph = null, DefinitionRegistry? definitions = null,
-        SimCalendar? calendar = null, EventSettings? events = null)
+        SimCalendar? calendar = null, EventSettings? events = null, ScenarioPackage? scenario = null)
     {
         using var stream = new MemoryStream(data, writable: false);
         using var reader = new BinaryReader(stream);
@@ -86,9 +88,14 @@ public static class SaveSystem
         {
             if (graph is null || definitions is null)
                 throw new SaveLoadException(Invariant($"Save requires scenario '{scenarioId}' (map + definitions)."));
-            if (graph.MapId != scenarioId || ScenarioHash.Compute(graph, definitions) != scenarioHash)
+            // With a scenario package the identity is the whole bundle (calendar,
+            // timeline, events, RUE-38); otherwise it is map + definitions (RUE-8).
+            var expectedHash = scenario is not null
+                ? ScenarioHash.Compute(scenario, graph, definitions)
+                : ScenarioHash.Compute(graph, definitions);
+            if (graph.MapId != scenarioId || expectedHash != scenarioHash)
                 throw new SaveLoadException(Invariant(
-                    $"Save was created with different scenario data ('{scenarioId}'): map or definitions do not match."));
+                    $"Save was created with different scenario data ('{scenarioId}'): map, definitions, or scenario config do not match."));
         }
         else if (graph is not null || definitions is not null)
         {
@@ -117,7 +124,11 @@ public static class SaveSystem
         if (snapshot is null)
             throw new SaveLoadException("No snapshot for the saved tick.");
 
-        var sim = new Simulation(seed, calendar ?? SimCalendar.Milano1880(), graph, definitions, events);
+        // A scenario package rebuilds the calendar (and events) from its data and
+        // is retained so a re-save carries the same whole-bundle hash (RUE-38).
+        var sim = scenario is not null && graph is not null
+            ? Simulation.FromScenario(seed, scenario, graph, definitions!)
+            : new Simulation(seed, calendar ?? SimCalendar.Milano1880(), graph, definitions, events);
         using var snapshotStream = new MemoryStream(snapshot, writable: false);
         using var snapshotReader = new BinaryReader(snapshotStream);
         try
@@ -136,6 +147,15 @@ public static class SaveSystem
 
         sim.RestoreLog(entries);
         return sim;
+    }
+
+    private static ulong ComputeScenarioHash(SimState state)
+    {
+        if (state.Graph is null)
+            return 0UL;
+        return state.Scenario is not null
+            ? ScenarioHash.Compute(state.Scenario, state.Graph, state.Definitions!)
+            : ScenarioHash.Compute(state.Graph, state.Definitions!);
     }
 
     private static byte[] ReadSnapshot(BinaryReader reader)

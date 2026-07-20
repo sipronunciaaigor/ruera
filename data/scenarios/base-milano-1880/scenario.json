@@ -1,0 +1,32 @@
+{
+  "formatVersion": 1,
+  "id": "base:milano-1880",
+  "name": "Milano 1880–1930",
+  "map": "base:toy",
+  "calendar": {
+    "epochYear": 1880,
+    "epochMonth": 1,
+    "epochDay": 1,
+    "restDays": ["sunday"],
+    "holidays": [
+      { "month": 1, "day": 1, "name": "Capodanno" },
+      { "month": 1, "day": 6, "name": "Epifania" },
+      { "month": 8, "day": 15, "name": "Assunzione" },
+      { "month": 11, "day": 1, "name": "Ognissanti" },
+      { "month": 12, "day": 7, "name": "Sant'Ambrogio" },
+      { "month": 12, "day": 8, "name": "Immacolata" },
+      { "month": 12, "day": 25, "name": "Natale" },
+      { "month": 12, "day": 26, "name": "Santo Stefano" }
+    ]
+  },
+  "timeline": [],
+  "events": {
+    "breakdownChanceBps": 150,
+    "repairTicks": 5,
+    "repairCostBpsOfPurchase": 500,
+    "inspectionChanceBps": 100,
+    "inspectionFineCents": 2000,
+    "tenderChanceBps": 50,
+    "tenderDeadlineTicks": 30
+  }
+}
