@@ -72,6 +72,15 @@ public partial class Hud : CanvasLayer
         AddSpeedButton(speedRow, "16x", 16, root);
         _speedLabel = AddLabel(panel);
 
+        var saveLoadRow = new HBoxContainer { Name = "SaveLoadRow" };
+        panel.AddChild(saveLoadRow);
+        var saveButton = new Button { Text = "Salva" };
+        saveButton.Pressed += root.Save;
+        saveLoadRow.AddChild(saveButton);
+        var loadButton = new Button { Text = "Carica" };
+        loadButton.Pressed += root.Load;
+        saveLoadRow.AddChild(loadButton);
+
         _eventLog = new RichTextLabel
         {
             Name = "EventLog",

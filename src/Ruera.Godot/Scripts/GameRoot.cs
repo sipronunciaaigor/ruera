@@ -5,6 +5,7 @@ using Godot;
 using Ruera.Sim;
 using Ruera.Sim.Commands;
 using Ruera.Sim.Packaging;
+using Ruera.Sim.Persistence;
 
 namespace Ruera.Renderer;
 
@@ -21,12 +22,14 @@ public partial class GameRoot : Node3D
 
     private const string ScenarioId = "base:milano-1880";
     private const ulong Seed = 42UL;
+    private const string SaveSlotPath = "user://slot1.ruera";
 
     /// <summary>Real seconds per tick at Speed = 1 — rendering-only pace (DESIGN.md §2); never affects sim results.</summary>
     private const double SecondsPerTick = 1.0;
 
     private double _accumulatedSeconds;
     private int _lastActiveSpeed = 1;
+    private LoadedPackages? _packages;
 
     public Simulation? Sim { get; private set; }
 
@@ -47,8 +50,8 @@ public partial class GameRoot : Node3D
             return;
         }
 
-        var packages = ContentLoader.LoadFromDirectory(packagesPath);
-        Sim = packages.NewSimulation(Seed, ScenarioId);
+        _packages = ContentLoader.LoadFromDirectory(packagesPath);
+        Sim = _packages.NewSimulation(Seed, ScenarioId);
 
         Sim.Submit(new AddCarrierCommand("base:navazza"));
         Sim.Submit(new AddCarrierCommand("base:navazza"));
@@ -86,6 +89,7 @@ public partial class GameRoot : Node3D
         Hud.Setup(this);
         TickResolved += () => Hud!.Refresh(Sim);
         TickResolved += () => World!.Refresh(Sim!.State);
+        TickResolved += () => World!.PlayCarrierRoutes(Sim!, SecondsPerTick / Speed);
 
         GD.Print($"Ruera: loaded {ScenarioId}, seed {Seed}, today {Sim.Today}.");
     }
@@ -128,5 +132,55 @@ public partial class GameRoot : Node3D
             _lastActiveSpeed = Speed;
         Speed = speed;
         Hud?.RefreshSpeed(Speed);
+    }
+
+    /// <summary>B6: writes SaveSystem.Save(Sim) to user://slot1.ruera.</summary>
+    public void Save()
+    {
+        if (Sim is null)
+            return;
+
+        var bytes = SaveSystem.Save(Sim);
+        using var file = Godot.FileAccess.Open(SaveSlotPath, Godot.FileAccess.ModeFlags.Write);
+        if (file is null)
+        {
+            GD.PushError($"Ruera: could not open '{SaveSlotPath}' for writing ({Godot.FileAccess.GetOpenError()}).");
+            return;
+        }
+
+        file.StoreBuffer(bytes);
+        GD.Print($"Ruera: saved to {SaveSlotPath}.");
+    }
+
+    /// <summary>
+    /// B6: loads user://slot1.ruera via LoadedPackages.LoadSave, replaces
+    /// Sim and rebuilds World in place (same instance — see WorldView.Build)
+    /// so Painter/Inspector's event subscriptions stay valid.
+    /// </summary>
+    public void Load()
+    {
+        if (_packages is null || World is null)
+            return;
+
+        if (!Godot.FileAccess.FileExists(SaveSlotPath))
+        {
+            GD.PushWarning($"Ruera: no save file at '{SaveSlotPath}'.");
+            return;
+        }
+
+        using var file = Godot.FileAccess.Open(SaveSlotPath, Godot.FileAccess.ModeFlags.Read);
+        if (file is null)
+        {
+            GD.PushError($"Ruera: could not open '{SaveSlotPath}' for reading ({Godot.FileAccess.GetOpenError()}).");
+            return;
+        }
+
+        var bytes = file.GetBuffer((long)file.GetLength());
+        Sim = _packages.LoadSave(bytes, ScenarioId);
+
+        World.Build(Sim);
+        World.Refresh(Sim.State);
+        Hud!.Refresh(Sim);
+        GD.Print($"Ruera: loaded {SaveSlotPath}, today {Sim.Today}.");
     }
 }

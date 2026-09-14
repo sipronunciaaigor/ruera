@@ -96,7 +96,10 @@ public partial class Painter : Node
     {
         var sim = _root.Sim;
         var world = _root.World;
-        if (sim is null || world is null || _selectedCarrierId == 0)
+        // The TryGetCarrier check guards a stale id after a Load (B6) onto a
+        // save with fewer carriers — RefreshCarrierList reselects a valid one
+        // on the next tick regardless.
+        if (sim is null || world is null || _selectedCarrierId == 0 || !sim.State.TryGetCarrier(_selectedCarrierId, out _))
             return;
 
         var pendingArray = _pending.OrderBy(id => id).ToArray();
@@ -126,7 +129,7 @@ public partial class Painter : Node
 
     private void Apply()
     {
-        if (_root.Sim is null || _selectedCarrierId == 0)
+        if (_root.Sim is null || _selectedCarrierId == 0 || !_root.Sim.State.TryGetCarrier(_selectedCarrierId, out _))
             return;
         _root.Sim.Submit(new SetCoverageCommand(_selectedCarrierId, [.. _pending.OrderBy(id => id)]));
         _planLabel.Text += "  (applicato al prossimo tick)";

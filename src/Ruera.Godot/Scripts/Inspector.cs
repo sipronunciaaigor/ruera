@@ -74,7 +74,14 @@ public partial class Inspector : Node
         }
         else if (_selectedCarrierId is { } carrierId)
         {
-            var carrier = sim.State.Carrier(carrierId);
+            if (!sim.State.TryGetCarrier(carrierId, out var carrier))
+            {
+                // Stale after a Load (B6) onto a save with fewer carriers.
+                _selectedCarrierId = null;
+                _label.Text = "";
+                return;
+            }
+
             var report = sim.State.LastDayReports.FirstOrDefault(r => r.CarrierId == carrierId);
             var reportText = report is null
                 ? "nessun giro oggi"

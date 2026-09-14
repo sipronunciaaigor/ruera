@@ -34,8 +34,25 @@ public partial class WorldView : Node3D
     /// <summary>Raised when a carrier sphere is left-clicked (B5: the inspector listens for this).</summary>
     public event Action<int>? CarrierClicked;
 
+    /// <summary>
+    /// (Re)builds the whole scene from a simulation. Idempotent — B6's Load
+    /// calls this again on the same WorldView instance so Painter/Inspector's
+    /// event subscriptions (made once, against this object) stay valid; a
+    /// freshly constructed WorldView would need them all re-wired instead.
+    /// </summary>
     public void Build(Simulation sim)
     {
+        foreach (Node child in GetChildren())
+        {
+            RemoveChild(child);
+            child.QueueFree();
+        }
+
+        _producerViews.Clear();
+        _edgeViews.Clear();
+        _carrierViews.Clear();
+        _nodePositions.Clear();
+
         var graph = sim.State.Graph ?? throw new InvalidOperationException("WorldView requires a world (street graph).");
 
         float minX = float.MaxValue, maxX = float.MinValue, minZ = float.MaxValue, maxZ = float.MinValue;
@@ -190,5 +207,60 @@ public partial class WorldView : Node3D
     {
         foreach (Node child in _arrows.GetChildren())
             child.QueueFree();
+    }
+
+    /// <summary>
+    /// Tweens each dispatched carrier along its <c>ExecutedLegs</c> for the
+    /// tick just resolved (B6), through the depot on every
+    /// <c>ReturnToDepot</c> marker, over <paramref name="tickDurationSeconds"/>
+    /// (speed-aware: GameRoot passes SecondsPerTick / Speed). ExecutedLegs
+    /// only carries edge ids and return markers (unlike the painted
+    /// TourPlan's legs, which carry a NodePath) — entry/exit and the
+    /// street-by-street path are resolved here the same way the day plan
+    /// itself picks them (nearest endpoint to the carrier's current position).
+    /// </summary>
+    public void PlayCarrierRoutes(Simulation sim, double tickDurationSeconds)
+    {
+        var graph = sim.State.Graph;
+        if (graph is null)
+            return;
+        var depotNode = graph.Depots[0].Node;
+
+        foreach (var report in sim.State.LastDayReports)
+        {
+            if (report.ExecutedLegs.Count == 0 || !_carrierViews.TryGetValue(report.CarrierId, out var carrierView))
+                continue;
+
+            var waypoints = new List<Vector3> { _depotPosition };
+            var current = depotNode;
+            foreach (var leg in report.ExecutedLegs)
+            {
+                var edge = graph.Edge(leg.EdgeId);
+                var toFrom = graph.Distance(current, edge.From).Value;
+                var toTo = graph.Distance(current, edge.To).Value;
+                var (entry, exit) = toFrom <= toTo ? (edge.From, edge.To) : (edge.To, edge.From);
+
+                foreach (var nodeId in graph.ShortestPath(current, entry))
+                    waypoints.Add(_nodePositions[nodeId]);
+                waypoints.Add(_nodePositions[exit]);
+                current = exit;
+
+                if (leg.ReturnToDepot)
+                {
+                    foreach (var nodeId in graph.ShortestPath(current, depotNode))
+                        waypoints.Add(_nodePositions[nodeId]);
+                    current = depotNode;
+                }
+            }
+
+            var deduped = new List<Vector3> { waypoints[0] };
+            for (var i = 1; i < waypoints.Count; i++)
+            {
+                if (!waypoints[i].IsEqualApprox(deduped[^1]))
+                    deduped.Add(waypoints[i]);
+            }
+
+            carrierView.PlayRoute(deduped, tickDurationSeconds);
+        }
     }
 }
