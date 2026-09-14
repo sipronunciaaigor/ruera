@@ -55,7 +55,36 @@ public partial class Hud : CanvasLayer
 
     public void Setup(GameRoot root)
     {
-        AddPanel(new Vector2(12, 12), out var body);
+        // All top-row panels flow left to right inside one HBoxContainer
+        // instead of guessed fixed pixel offsets (RUE-53/B8 fix): guessed
+        // offsets kept landing panels on top of the toy map's nodes, which
+        // fills nearly the whole viewport — fabri's playtest, again, after
+        // B8 added the Inspector/Management column. A container lays out
+        // children by their real measured size, so it can never overlap
+        // itself regardless of how tall any one panel's content gets.
+        var topRow = new HBoxContainer { Name = "TopRow", Position = new Vector2(12, 12) };
+        topRow.AddThemeConstantOverride("separation", 12);
+        AddChild(topRow);
+
+        SetupStatus(root, topRow);
+        SetupPainter(root, topRow);
+
+        var rightColumn = new VBoxContainer { Name = "RightColumn" };
+        rightColumn.AddThemeConstantOverride("separation", 12);
+        topRow.AddChild(rightColumn);
+        SetupInspector(root, rightColumn);
+        SetupManagement(root, rightColumn);
+
+        SetupEventLog();
+
+        RefreshSpeed(root.Speed);
+        Refresh(root.Sim);
+    }
+
+    /// <summary>Clock, cash/stockpile/workers/bankrupt readout, speed controls, save/load (RUE-17, B3).</summary>
+    private void SetupStatus(GameRoot root, Node parent)
+    {
+        AddPanel(parent, out var body);
 
         _dateLabel = AddLabel(body);
         _weekdayLabel = AddLabel(body);
@@ -81,14 +110,6 @@ public partial class Hud : CanvasLayer
         var loadButton = new Button { Text = "Carica" };
         loadButton.Pressed += root.Load;
         saveLoadRow.AddChild(loadButton);
-
-        SetupEventLog();
-        SetupPainter(root);
-        SetupInspector(root);
-        SetupManagement(root);
-
-        RefreshSpeed(root.Speed);
-        Refresh(root.Sim);
     }
 
     /// <summary>
@@ -117,9 +138,9 @@ public partial class Hud : CanvasLayer
     /// the one exception — a "Firma contratto" button when an uncontracted
     /// producer is selected.
     /// </summary>
-    private void SetupInspector(GameRoot root)
+    private void SetupInspector(GameRoot root, Node parent)
     {
-        AddPanel(new Vector2(760, 12), out var body);
+        AddPanel(parent, out var body);
 
         var label = new Label { Name = "InspectorLabel", CustomMinimumSize = new Vector2(260, 0) };
         body.AddChild(label);
@@ -137,9 +158,9 @@ public partial class Hud : CanvasLayer
     /// Apply/Cancel. RUE-53/B8 adds service lines: save the painted selection
     /// as a named line, and assign any carrier to an existing line.
     /// </summary>
-    private void SetupPainter(GameRoot root)
+    private void SetupPainter(GameRoot root, Node parent)
     {
-        AddPanel(new Vector2(460, 12), out var body);
+        AddPanel(parent, out var body);
 
         var carrierSelect = new OptionButton { Name = "CarrierSelect", CustomMinimumSize = new Vector2(200, 0) };
         body.AddChild(carrierSelect);
@@ -179,9 +200,9 @@ public partial class Hud : CanvasLayer
     }
 
     /// <summary>Buy a carrier / hire a worker (RUE-53, B8) — commands that pre-date Phase B but had no UI.</summary>
-    private void SetupManagement(GameRoot root)
+    private void SetupManagement(GameRoot root, Node parent)
     {
-        AddPanel(new Vector2(760, 260), out var body);
+        AddPanel(parent, out var body);
 
         var carrierTypeSelect = new OptionButton { Name = "CarrierTypeSelect", CustomMinimumSize = new Vector2(220, 0) };
         body.AddChild(carrierTypeSelect);
@@ -200,24 +221,21 @@ public partial class Hud : CanvasLayer
         management.Setup(root, carrierTypeSelect, buyButton, hireButton, statusLabel);
     }
 
-    /// <summary>A semi-transparent background panel positioned by a fixed top-left offset, with a VBoxContainer body (B7).</summary>
-    private PanelContainer AddPanel(Vector2 position, out VBoxContainer body)
-    {
-        var panel = AddPanel(out body);
-        panel.Position = position;
-        return panel;
-    }
-
-    /// <summary>A semi-transparent background panel anchored by a Control preset + offset from the anchor point (B7).</summary>
+    /// <summary>A semi-transparent background panel anchored by a Control preset + offset from the anchor point (B7) — used only by the event log, which sits outside the flowed top row on purpose.</summary>
     private PanelContainer AddPanel(Control.LayoutPreset anchorPreset, Vector2 offsetFromAnchor, out VBoxContainer body)
     {
-        var panel = AddPanel(out body);
+        var panel = AddPanel(this, out body);
         panel.SetAnchorsPreset(anchorPreset);
         panel.Position = offsetFromAnchor;
         return panel;
     }
 
-    private PanelContainer AddPanel(out VBoxContainer body)
+    /// <summary>
+    /// A semi-transparent background panel with a VBoxContainer body (B7),
+    /// parented wherever the caller needs it laid out — a flow container
+    /// (B8) for the top-row panels, or directly on the Hud for anchored ones.
+    /// </summary>
+    private static PanelContainer AddPanel(Node parent, out VBoxContainer body)
     {
         var style = new StyleBoxFlat
         {
@@ -229,7 +247,7 @@ public partial class Hud : CanvasLayer
         };
         var panel = new PanelContainer();
         panel.AddThemeStyleboxOverride("panel", style);
-        AddChild(panel);
+        parent.AddChild(panel);
 
         body = new VBoxContainer();
         panel.AddChild(body);
