@@ -15,12 +15,27 @@ namespace Ruera.Renderer;
 /// </summary>
 public partial class GameRoot : Node3D
 {
+    /// <summary>Emitted right after <see cref="Simulation.Advance"/> resolves one tick.</summary>
+    [Signal]
+    public delegate void TickResolvedEventHandler();
+
     private const string ScenarioId = "base:milano-1880";
     private const ulong Seed = 42UL;
+
+    /// <summary>Real seconds per tick at Speed = 1 — rendering-only pace (DESIGN.md §2); never affects sim results.</summary>
+    private const double SecondsPerTick = 1.0;
+
+    private double _accumulatedSeconds;
+    private int _lastActiveSpeed = 1;
 
     public Simulation? Sim { get; private set; }
 
     public WorldView? World { get; private set; }
+
+    public Hud? Hud { get; private set; }
+
+    /// <summary>0 = paused, otherwise ticks-per-real-second multiplier (1/4/16).</summary>
+    public int Speed { get; private set; } = 1;
 
     public override void _Ready()
     {
@@ -66,6 +81,52 @@ public partial class GameRoot : Node3D
             },
         });
 
+        Hud = new Hud { Name = "Hud" };
+        AddChild(Hud);
+        Hud.Setup(this);
+        TickResolved += () => Hud!.Refresh(Sim);
+        TickResolved += () => World!.Refresh(Sim!.State);
+
         GD.Print($"Ruera: loaded {ScenarioId}, seed {Seed}, today {Sim.Today}.");
+    }
+
+    public override void _Process(double delta)
+    {
+        if (Sim is null || Speed == 0)
+            return;
+
+        _accumulatedSeconds += delta * Speed;
+        while (_accumulatedSeconds >= SecondsPerTick)
+        {
+            _accumulatedSeconds -= SecondsPerTick;
+            Sim.Advance(1);
+            EmitSignal(SignalName.TickResolved);
+        }
+    }
+
+    public override void _UnhandledInput(InputEvent @event)
+    {
+        if (@event is not InputEventKey { Pressed: true } key)
+            return;
+
+        switch (key.Keycode)
+        {
+            case Key.Space: SetSpeed(Speed == 0 ? _lastActiveSpeed : 0); break;
+            case Key.Key1: SetSpeed(1); break;
+            case Key.Key2: SetSpeed(4); break;
+            case Key.Key3: SetSpeed(16); break;
+            default: return;
+        }
+
+        GetViewport().SetInputAsHandled();
+    }
+
+    /// <summary>Speeds 0/1/4/16 (DESIGN.md §2: rendering pace only, never affects sim results).</summary>
+    public void SetSpeed(int speed)
+    {
+        if (Speed != 0)
+            _lastActiveSpeed = Speed;
+        Speed = speed;
+        Hud?.RefreshSpeed(Speed);
     }
 }
