@@ -83,9 +83,24 @@ public partial class Hud : CanvasLayer
         AddChild(_eventLog);
 
         SetupPainter(root);
+        SetupInspector(root);
 
         RefreshSpeed(root.Speed);
         Refresh(root.Sim);
+    }
+
+    /// <summary>Read-only entity inspector (RUE-19, B5): archetype/buffer/violations for a producer, or type/coverage/last report for a carrier.</summary>
+    private void SetupInspector(GameRoot root)
+    {
+        var panel = new PanelContainer { Name = "InspectorPanel", Position = new Vector2(460, 200) };
+        AddChild(panel);
+
+        var label = new Label { Name = "InspectorLabel", CustomMinimumSize = new Vector2(260, 0) };
+        panel.AddChild(label);
+
+        var inspector = new Inspector { Name = "Inspector" };
+        AddChild(inspector);
+        inspector.Setup(root, label);
     }
 
     /// <summary>Coverage painting panel (RUE-30, B4): carrier picker, plan readout, Apply/Cancel.</summary>

@@ -17,14 +17,22 @@ public partial class WorldView : Node3D
 {
     private readonly Dictionary<int, ProducerView> _producerViews = [];
     private readonly Dictionary<int, EdgeView> _edgeViews = [];
+    private readonly Dictionary<int, CarrierView> _carrierViews = [];
     private readonly Dictionary<int, Vector3> _nodePositions = [];
     private Node3D _arrows = null!;
+    private Vector3 _depotPosition;
 
     /// <summary>Map bounding-box centre, in Godot world space — the camera rig frames around this.</summary>
     public Vector3 Center { get; private set; }
 
     /// <summary>Raised when a street edge is left-clicked (B4: the painter listens for this).</summary>
     public event Action<int>? EdgeClicked;
+
+    /// <summary>Raised when a producer box is left-clicked (B5: the inspector listens for this).</summary>
+    public event Action<int>? ProducerClicked;
+
+    /// <summary>Raised when a carrier sphere is left-clicked (B5: the inspector listens for this).</summary>
+    public event Action<int>? CarrierClicked;
 
     public void Build(Simulation sim)
     {
@@ -75,6 +83,9 @@ public partial class WorldView : Node3D
             });
         }
 
+        // Day-plan assumes a single depot too (DESIGN.md §4; satellite depots are C1).
+        _depotPosition = _nodePositions[graph.Depots[0].Node];
+
         foreach (var producer in graph.Producers)
         {
             var edge = graph.Edge(producer.Edge);
@@ -87,6 +98,7 @@ public partial class WorldView : Node3D
             var producerView = new ProducerView { Name = $"Producer{producer.Id}", Position = midpoint + offset };
             AddChild(producerView);
             producerView.Setup(producer.Id, producer.Archetype);
+            producerView.Clicked += id => ProducerClicked?.Invoke(id);
             _producerViews[producer.Id] = producerView;
         }
 
@@ -102,6 +114,34 @@ public partial class WorldView : Node3D
             if (_producerViews.TryGetValue(producer.Id, out var view))
                 view.UpdateBuffer(producer.BufferGrams, producer.Archetype.BufferGrams);
         }
+
+        // New carriers (bought/hired mid-game) get a sphere the first tick they
+        // exist; B6 adds tick-by-tick movement along their ExecutedLegs.
+        foreach (var carrier in state.Carriers)
+        {
+            if (_carrierViews.ContainsKey(carrier.Id))
+                continue;
+
+            var carrierView = new CarrierView { Name = $"Carrier{carrier.Id}" };
+            AddChild(carrierView);
+            carrierView.Setup(carrier.Id, _depotPosition);
+            carrierView.Clicked += id => CarrierClicked?.Invoke(id);
+            _carrierViews[carrier.Id] = carrierView;
+        }
+    }
+
+    /// <summary>Selection (B5): emissive highlight on the producer's Mesh child.</summary>
+    public void SetProducerSelected(int producerId, bool selected)
+    {
+        if (_producerViews.TryGetValue(producerId, out var view))
+            view.SetSelected(selected);
+    }
+
+    /// <summary>Selection (B5): emissive highlight on the carrier's Mesh child.</summary>
+    public void SetCarrierSelected(int carrierId, bool selected)
+    {
+        if (_carrierViews.TryGetValue(carrierId, out var view))
+            view.SetSelected(selected);
     }
 
     /// <summary>Painting (B4): tint one edge; null reverts it to the default street colour.</summary>
