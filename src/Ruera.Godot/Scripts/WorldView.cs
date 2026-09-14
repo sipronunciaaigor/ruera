@@ -16,20 +16,25 @@ namespace Ruera.Renderer;
 public partial class WorldView : Node3D
 {
     private readonly Dictionary<int, ProducerView> _producerViews = [];
+    private readonly Dictionary<int, EdgeView> _edgeViews = [];
+    private readonly Dictionary<int, Vector3> _nodePositions = [];
+    private Node3D _arrows = null!;
 
     /// <summary>Map bounding-box centre, in Godot world space — the camera rig frames around this.</summary>
     public Vector3 Center { get; private set; }
 
+    /// <summary>Raised when a street edge is left-clicked (B4: the painter listens for this).</summary>
+    public event Action<int>? EdgeClicked;
+
     public void Build(Simulation sim)
     {
         var graph = sim.State.Graph ?? throw new InvalidOperationException("WorldView requires a world (street graph).");
-        var nodePositions = new Dictionary<int, Vector3>();
 
         float minX = float.MaxValue, maxX = float.MinValue, minZ = float.MaxValue, maxZ = float.MinValue;
         foreach (var node in graph.Nodes)
         {
             var position = new Vector3(node.X, 0f, node.Y);
-            nodePositions[node.Id] = position;
+            _nodePositions[node.Id] = position;
             minX = Math.Min(minX, position.X);
             maxX = Math.Max(maxX, position.X);
             minZ = Math.Min(minZ, position.Z);
@@ -47,14 +52,16 @@ public partial class WorldView : Node3D
 
         foreach (var edge in graph.Edges)
         {
-            var from = nodePositions[edge.From];
-            var to = nodePositions[edge.To];
+            var from = _nodePositions[edge.From];
+            var to = _nodePositions[edge.To];
 
             var edgeView = new EdgeView { Name = $"Edge{edge.Id}" };
             AddChild(edgeView);
             edgeView.Setup(edge, from, to);
             if (!from.IsEqualApprox(to))
                 edgeView.LookAt(to, Vector3.Up); // in the tree now: LookAt is safe here
+            edgeView.Clicked += id => EdgeClicked?.Invoke(id);
+            _edgeViews[edge.Id] = edgeView;
         }
 
         foreach (var depot in graph.Depots)
@@ -64,15 +71,15 @@ public partial class WorldView : Node3D
                 Name = $"Depot{depot.Id}",
                 Mesh = new BoxMesh { Size = new Vector3(40f, 40f, 40f) },
                 MaterialOverride = new StandardMaterial3D { AlbedoColor = new Color(0.40f, 0.25f, 0.10f) },
-                Position = nodePositions[depot.Node] + new Vector3(0f, 20f, 0f),
+                Position = _nodePositions[depot.Node] + new Vector3(0f, 20f, 0f),
             });
         }
 
         foreach (var producer in graph.Producers)
         {
             var edge = graph.Edge(producer.Edge);
-            var from = nodePositions[edge.From];
-            var to = nodePositions[edge.To];
+            var from = _nodePositions[edge.From];
+            var to = _nodePositions[edge.To];
             var midpoint = (from + to) / 2f;
             var direction = from.IsEqualApprox(to) ? Vector3.Forward : (to - from).Normalized();
             var offset = direction.Cross(Vector3.Up) * 15f;
@@ -82,6 +89,9 @@ public partial class WorldView : Node3D
             producerView.Setup(producer.Id, producer.Archetype);
             _producerViews[producer.Id] = producerView;
         }
+
+        _arrows = new Node3D { Name = "Arrows" };
+        AddChild(_arrows);
     }
 
     /// <summary>Restages producer heights/colours from the live state (wired to <c>TickResolved</c> in B3).</summary>
@@ -92,5 +102,53 @@ public partial class WorldView : Node3D
             if (_producerViews.TryGetValue(producer.Id, out var view))
                 view.UpdateBuffer(producer.BufferGrams, producer.Archetype.BufferGrams);
         }
+    }
+
+    /// <summary>Painting (B4): tint one edge; null reverts it to the default street colour.</summary>
+    public void HighlightEdge(int edgeId, Color? color)
+    {
+        if (_edgeViews.TryGetValue(edgeId, out var view))
+            view.SetHighlight(color);
+    }
+
+    public void ClearEdgeHighlights()
+    {
+        foreach (var view in _edgeViews.Values)
+            view.SetHighlight(null);
+    }
+
+    /// <summary>Painting (B4): small cones along each leg's node path, in visit order, replacing any previous plan.</summary>
+    public void ShowPlan(TourPlan plan)
+    {
+        foreach (Node child in _arrows.GetChildren())
+            child.QueueFree();
+
+        foreach (var leg in plan.Legs)
+        {
+            for (var i = 0; i < leg.NodePath.Count - 1; i++)
+            {
+                var from = _nodePositions[leg.NodePath[i]];
+                var to = _nodePositions[leg.NodePath[i + 1]];
+                if (from.IsEqualApprox(to))
+                    continue;
+
+                var arrow = new Node3D { Position = (from + to) / 2f };
+                _arrows.AddChild(arrow);
+                arrow.AddChild(new MeshInstance3D
+                {
+                    Name = "Mesh",
+                    Mesh = new CylinderMesh { TopRadius = 0f, BottomRadius = 3f, Height = 10f },
+                    // Cone tip is local +Y; rotate it onto local -Z so LookAt (which points -Z at the target) aims the tip forward.
+                    RotationDegrees = new Vector3(-90f, 0f, 0f),
+                });
+                arrow.LookAt(to, Vector3.Up);
+            }
+        }
+    }
+
+    public void ClearArrows()
+    {
+        foreach (Node child in _arrows.GetChildren())
+            child.QueueFree();
     }
 }

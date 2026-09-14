@@ -82,8 +82,34 @@ public partial class Hud : CanvasLayer
         };
         AddChild(_eventLog);
 
+        SetupPainter(root);
+
         RefreshSpeed(root.Speed);
         Refresh(root.Sim);
+    }
+
+    /// <summary>Coverage painting panel (RUE-30, B4): carrier picker, plan readout, Apply/Cancel.</summary>
+    private void SetupPainter(GameRoot root)
+    {
+        var panel = new VBoxContainer { Name = "PaintPanel", Position = new Vector2(460, 12) };
+        AddChild(panel);
+
+        var carrierSelect = new OptionButton { Name = "CarrierSelect", CustomMinimumSize = new Vector2(200, 0) };
+        panel.AddChild(carrierSelect);
+
+        var planLabel = new Label { Name = "PlanLabel" };
+        panel.AddChild(planLabel);
+
+        var buttonRow = new HBoxContainer { Name = "ApplyCancelRow" };
+        panel.AddChild(buttonRow);
+        var applyButton = new Button { Text = "Applica" };
+        buttonRow.AddChild(applyButton);
+        var cancelButton = new Button { Text = "Annulla" };
+        buttonRow.AddChild(cancelButton);
+
+        var painter = new Painter { Name = "Painter" };
+        AddChild(painter);
+        painter.Setup(root, carrierSelect, planLabel, applyButton, cancelButton);
     }
 
     private static Label AddLabel(Node parent)
