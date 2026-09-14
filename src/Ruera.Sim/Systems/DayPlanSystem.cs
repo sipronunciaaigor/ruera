@@ -104,6 +104,7 @@ internal sealed class DayPlanSystem : ISimSystem
 
         var remaining = new List<int>(coverageEdges); // sorted: ties pick lowest id
         var served = new List<int>();
+        var executedLegs = new List<ExecutedLeg>();
         var current = depotNode;
         long used = 0, collected = 0;
         var capacityLeft = definition.CapacityGrams;
@@ -124,6 +125,8 @@ internal sealed class DayPlanSystem : ISimSystem
                 capacityLeft = definition.CapacityGrams;
                 current = depotNode;
                 startingNewTrip = true;
+                if (executedLegs.Count > 0)
+                    executedLegs[^1] = executedLegs[^1] with { ReturnToDepot = true };
                 continue;
             }
 
@@ -183,6 +186,7 @@ internal sealed class DayPlanSystem : ISimSystem
 
             leftDepot = true;
             current = exit;
+            executedLegs.Add(new ExecutedLeg(edge.Id, ReturnToDepot: false));
             if (edgeFullyServed)
                 remaining.Remove(edge.Id);
         }
@@ -192,16 +196,29 @@ internal sealed class DayPlanSystem : ISimSystem
             used += IntMath.DivCeil(graph.Distance(current, depotNode).Value, definition.MetersPerMinute);
             if (collected > 0)
                 used += definition.EmptyMinutes;
+            executedLegs[^1] = executedLegs[^1] with { ReturnToDepot = true }; // the tour's final return
         }
 
         state.StockpileGrams = checked(state.StockpileGrams + collected);
         // Multi-trip can revisit the same producer across trips: dedupe like
         // LineReport already does, so a served id is reported once per tour.
-        state.Report(new DayPlanReport(carrier.Id, used, collected, [.. served.Distinct().OrderBy(id => id)], trips));
+        state.Report(new DayPlanReport(carrier.Id, used, collected, [.. served.Distinct().OrderBy(id => id)], trips,
+            executedLegs));
     }
 
+    /// <summary>Pessimistic minutes-only estimate (DESIGN.md §4); see <see cref="Plan(SimState,CarrierState)"/> for the full plan.</summary>
+    public static Minutes Preview(SimState state, CarrierState carrier) => Plan(state, carrier).Total;
+
+    /// <summary>Same estimate for a tentative coverage set (the UI previews while painting).</summary>
+    public static Minutes Preview(SimState state, CarrierDefinition definition, IReadOnlyList<int> coverage, int carrierId) =>
+        Plan(state, definition, coverage, carrierId).Total;
+
+    /// <summary>Builds the plan from the carrier's own committed coverage.</summary>
+    public static TourPlan Plan(SimState state, CarrierState carrier) =>
+        Plan(state, carrier.Definition, carrier.CoverageArray, carrier.Id);
+
     /// <summary>
-    /// Pessimistic preview for the UI (DESIGN.md §4): full cost of the painted
+    /// Pessimistic tour plan (DESIGN.md §4, RUE-19): full cost of the given
     /// coverage, ignoring overlaps with other carriers — overlap savings exist
     /// only in execution; estimates are pessimistic, reality can only be
     /// better. Multi-trip aware (RUE-44): each producer is assumed to carry
@@ -210,13 +227,10 @@ internal sealed class DayPlanSystem : ISimSystem
     /// depot round-trips (inserted exactly like execution) can only add time
     /// versus what will really happen; preview minutes are always >= real
     /// minutes. Unlike execution, this never stops at the shift budget: the
-    /// full pessimistic total is reported even past 100%, so the UI can show it.
+    /// full pessimistic total is reported even past 100% (<see cref="TourPlan.BudgetUsedBps"/>
+    /// can exceed 10 000), so the UI can show it.
     /// </summary>
-    public static Minutes Preview(SimState state, CarrierState carrier) =>
-        Preview(state, carrier.Definition, carrier.CoverageArray);
-
-    /// <summary>Same estimate for a tentative coverage set (the UI previews while painting).</summary>
-    public static Minutes Preview(SimState state, CarrierDefinition definition, IReadOnlyList<int> coverage)
+    public static TourPlan Plan(SimState state, CarrierDefinition definition, IReadOnlyList<int> coverage, int carrierId)
     {
         var graph = state.Graph
                     ?? throw new InvalidOperationException("Preview requires a world (street graph).");
@@ -232,9 +246,12 @@ internal sealed class DayPlanSystem : ISimSystem
         }
 
         var remaining = coverage.Distinct().OrderBy(id => id).ToList();
+        var legs = new List<TourLeg>();
         var current = depotNode;
         long total = 0;
         var capacityLeft = definition.CapacityGrams;
+        var trips = 0;
+        var startingNewTrip = true;
         while (remaining.Count > 0)
         {
             if (capacityLeft == 0)
@@ -243,12 +260,22 @@ internal sealed class DayPlanSystem : ISimSystem
                          + definition.EmptyMinutes;
                 capacityLeft = definition.CapacityGrams;
                 current = depotNode;
+                startingNewTrip = true;
+                if (legs.Count > 0)
+                    legs[^1] = legs[^1] with { ReturnToDepot = true };
                 continue;
             }
 
             var (edge, approach, entry) = NearestEdge(graph, current, remaining);
             total += IntMath.DivCeil(approach + edge.LengthMeters, definition.MetersPerMinute);
+            var arrivalMinute = total;
+            if (startingNewTrip)
+            {
+                trips++;
+                startingNewTrip = false;
+            }
 
+            var stops = 0;
             var edgeFullyServed = true;
             foreach (var producer in state.Producers)
             {
@@ -257,6 +284,7 @@ internal sealed class DayPlanSystem : ISimSystem
                 var left = pessimisticGrams[producer.Id];
                 if (left == 0)
                     continue;
+                stops++;
                 total += definition.FillMinutes;
                 if (capacityLeft == 0)
                 {
@@ -271,7 +299,10 @@ internal sealed class DayPlanSystem : ISimSystem
                     edgeFullyServed = false;
             }
 
-            current = entry == edge.From ? edge.To : edge.From;
+            var exit = entry == edge.From ? edge.To : edge.From;
+            var nodePath = graph.ShortestPath(current, entry);
+            legs.Add(new TourLeg(edge.Id, [.. nodePath, exit], arrivalMinute, stops, ReturnToDepot: false));
+            current = exit;
             if (edgeFullyServed)
                 remaining.Remove(edge.Id);
         }
@@ -280,9 +311,13 @@ internal sealed class DayPlanSystem : ISimSystem
         {
             total += IntMath.DivCeil(graph.Distance(current, depotNode).Value, definition.MetersPerMinute);
             total += definition.EmptyMinutes;
+            if (legs.Count > 0)
+                legs[^1] = legs[^1] with { ReturnToDepot = true };
         }
 
-        return new Minutes(total);
+        var budget = state.Economy.ShiftMinutes;
+        var budgetUsedBps = IntMath.MulDiv(total, 10_000, budget);
+        return new TourPlan(carrierId, legs, trips, new Minutes(total), new Minutes(budget), budgetUsedBps);
     }
 
     private static (MapEdge Edge, long Approach, int Entry) NearestEdge(StreetGraph graph, int fromNode, List<int> candidateIds)

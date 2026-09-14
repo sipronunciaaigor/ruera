@@ -133,7 +133,19 @@ public sealed class Simulation
 
     /// <summary>Estimate for a tentative coverage still being painted in the UI.</summary>
     public Minutes PreviewTour(int carrierId, IReadOnlyList<int> tentativeCoverage) =>
-        DayPlanSystem.Preview(State, State.Carrier(carrierId).Definition, tentativeCoverage);
+        DayPlanSystem.Preview(State, State.Carrier(carrierId).Definition, tentativeCoverage, carrierId);
+
+    /// <summary>
+    /// Read-only tour plan for a carrier's painted coverage (RUE-19, DESIGN.md
+    /// §3 «l'ispezione passa dalle query di lettura»): the same pessimistic
+    /// simulation as <see cref="PreviewTour(int)"/>, with every leg exposed
+    /// (node path, arrival minute, stops) for the renderer to draw.
+    /// </summary>
+    public TourPlan PlanTour(int carrierId) => DayPlanSystem.Plan(State, State.Carrier(carrierId));
+
+    /// <summary>Plan for a tentative coverage still being painted in the UI.</summary>
+    public TourPlan PlanTour(int carrierId, IReadOnlyList<int> tentativeCoverage) =>
+        DayPlanSystem.Plan(State, State.Carrier(carrierId).Definition, tentativeCoverage, carrierId);
 
     public void Advance(int ticks)
     {

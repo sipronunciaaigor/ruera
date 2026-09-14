@@ -40,7 +40,15 @@ public sealed class CarrierState
 /// <summary>
 /// What one carrier did in the last resolved day (inspectability, DESIGN.md §2).
 /// <paramref name="Trips"/> is the number of depot departures (RUE-44 multi-trip:
-/// ≥ 1 whenever the carrier left the depot). Not part of canonical state — a
-/// transient per-tick report, cleared every <see cref="SimState.BeginTick"/>.
+/// ≥ 1 whenever the carrier left the depot). <paramref name="ExecutedLegs"/> is
+/// the actual edge visit order (RUE-19), so the renderer can stage what really
+/// happened, distinct from the pessimistic <see cref="TourPlan"/> it painted.
+/// Not part of canonical state — a transient per-tick report, cleared every
+/// <see cref="SimState.BeginTick"/>.
 /// </summary>
-public sealed record DayPlanReport(int CarrierId, long MinutesUsed, long CollectedGrams, IReadOnlyList<int> ServedProducerIds, int Trips);
+public sealed record DayPlanReport(int CarrierId, long MinutesUsed, long CollectedGrams,
+    IReadOnlyList<int> ServedProducerIds, int Trips, IReadOnlyList<ExecutedLeg> ExecutedLegs);
+
+/// <summary>One edge actually visited during execution (RUE-19). <see cref="ReturnToDepot"/>
+/// marks a leg immediately followed by a trip home (multi-trip refill or the tour's end).</summary>
+public readonly record struct ExecutedLeg(int EdgeId, bool ReturnToDepot);
