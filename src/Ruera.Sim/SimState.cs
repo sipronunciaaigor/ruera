@@ -18,10 +18,6 @@ namespace Ruera.Sim;
 /// </summary>
 public sealed class SimState
 {
-    // Scenario constants (starting endowment) — scenario data eventually (RUE-20).
-    private const long StartingCashCents = 500_000; // 5 000 lire
-    private const int StartingWorkers = 4;          // trained from day zero
-
     // Enum.GetValues returns values sorted by underlying value: a stable, documented order.
     private static readonly RngStreamId[] StreamIds = Enum.GetValues<RngStreamId>();
 
@@ -84,22 +80,32 @@ public sealed class SimState
     /// </summary>
     public Packaging.PackageSetIdentity? Packages { get; }
 
+    /// <summary>
+    /// Economic cadences (RUE-43): wage, fines, delivery/training delays, shift
+    /// budget. Config like the calendar — not hashed here, but part of the
+    /// scenario's identity via <see cref="ScenarioPackage.AddToHash"/>.
+    /// </summary>
+    public EconomySettings Economy { get; }
+
     public SimState(ulong seed) : this(seed, SimCalendar.Milano1880(), null, null, null)
     {
     }
 
     public SimState(ulong seed, SimCalendar calendar, StreetGraph? graph, DefinitionRegistry? definitions,
-        EventSettings? events, ScenarioPackage? scenario = null, Packaging.PackageSetIdentity? packages = null)
+        EventSettings? events, ScenarioPackage? scenario = null, Packaging.PackageSetIdentity? packages = null,
+        StartSettings? start = null, EconomySettings? economy = null)
     {
         Events = events;
         Scenario = scenario;
         Packages = packages;
+        Economy = economy ?? EconomySettings.Default;
+        var effectiveStart = start ?? StartSettings.Default;
         if (graph is not null && definitions is not null)
         {
             _producers = [.. graph.Producers.Select(p =>
                 new ProducerState(p.Id, p.Edge, definitions.Archetype(p.Archetype)))];
-            CashCents = StartingCashCents;
-            for (var i = 0; i < StartingWorkers; i++)
+            CashCents = effectiveStart.CashCents;
+            for (var i = 0; i < effectiveStart.Workers; i++)
                 AddWorker(hiredTick: long.MinValue / 2); // trained long before day zero
         }
         else if (graph is null && definitions is null)

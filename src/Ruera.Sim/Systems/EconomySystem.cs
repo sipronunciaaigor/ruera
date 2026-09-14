@@ -12,12 +12,6 @@ namespace Ruera.Sim.Systems;
 /// </summary>
 internal sealed class EconomySystem : ISimSystem
 {
-    // Scenario constants — scenario data eventually (RUE-20).
-    internal const long DailyWageCents = 300;        // 3 lire/day laborer
-    internal const long FineCentsPerViolation = 500; // 5 lire per violation-tick
-    internal const long DeliveryDelayTicks = 5;
-    internal const long TrainingTicks = 10;
-
     public void Run(SimState state, SimCalendar calendar)
     {
         state.DeliverDue(); // scheduled future-tick effects: the checkpoint is a tick
@@ -25,7 +19,7 @@ internal sealed class EconomySystem : ISimSystem
         var date = calendar.DateAt(state.Tick);
 
         if (calendar.IsWorkingDay(state.Tick))
-            state.WageAccruedCents = checked(state.WageAccruedCents + DailyWageCents * state.Workers.Count);
+            state.WageAccruedCents = checked(state.WageAccruedCents + state.Economy.DailyWageCents * state.Workers.Count);
         if (date.Weekday == Weekday.Saturday)
         {
             state.CashCents = checked(state.CashCents - state.WageAccruedCents);
@@ -47,7 +41,7 @@ internal sealed class EconomySystem : ISimSystem
         foreach (var simEvent in state.LastTickEvents)
         {
             if (simEvent.Type is SimEventType.BufferOverflow or SimEventType.SanitaryViolation)
-                state.CashCents = checked(state.CashCents - FineCentsPerViolation);
+                state.CashCents = checked(state.CashCents - state.Economy.FineCentsPerViolation);
         }
 
         if (state.CashCents < 0 && !state.Bankrupt)

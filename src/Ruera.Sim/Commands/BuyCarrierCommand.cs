@@ -1,7 +1,5 @@
 using System.Globalization;
 
-using Ruera.Sim.Systems;
-
 namespace Ruera.Sim.Commands;
 
 /// <summary>
@@ -33,7 +31,7 @@ public sealed record BuyCarrierCommand(string CarrierTypeId) : SimCommand
     {
         var definition = state.Definitions!.Carrier(CarrierTypeId);
         state.CashCents = checked(state.CashCents - definition.PurchaseCents);
-        state.ScheduleDelivery(state.Tick + EconomySystem.DeliveryDelayTicks, CarrierTypeId);
+        state.ScheduleDelivery(state.Tick + state.Economy.DeliveryDelayTicks, CarrierTypeId);
     }
 
     internal override void WritePayload(BinaryWriter writer) => writer.Write(CarrierTypeId);

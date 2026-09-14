@@ -192,17 +192,20 @@ Il problema difficile è la **timeline storica di 170 anni in cui gli eventi cam
 **Formato** (JSON, `formatVersion`, unità intere, id namespaced §«Moddabilità») — *implementato in RUE-38* (`data/scenarios/<pkg>/scenario.json`):
 
 ```
-scenario  = { formatVersion, id, name, map: <mapId>, calendar, timeline: [ entry… ], events?, end? }
+scenario  = { formatVersion, id, name, map: <mapId>, calendar, timeline: [ entry… ], start, economy, events?, end? }
 calendar  = { epochYear, epochMonth, epochDay, restDays: ["sunday"…], holidays: [ {month,day,name}… ] }
 entry     = { onYear, onMonth, onDay, effect }             // trigger = data civile; ordine dichiarato = ordine di applicazione
 effect    = { type: <effectType>, …parametri }             // vocabolario chiuso
+start     = { cashCents, workers }                          // dotazione iniziale (RUE-43); applicata una sola volta alla costruzione
+economy   = { dailyWageCents, fineCentsPerViolation,        // cadenze economiche (RUE-43): config come il calendario, mai stato
+              deliveryDelayTicks, trainingTicks, shiftMinutes }
 events?   = EventSettings di RUE-32 (assente = eventi off)  // gli stocastici confluiscono qui
 end?      = { year, month, day }                           // fine opzionale: obiettivo §12, non vincolo del motore (vedi «Bounds»)
 ```
 
 `onCondition` (trigger su predicato di stato invece che su data) è **riservato**: non è ancora un campo — si aggiunge quando un evento della slice lo richiede.
 
-**Stato d'implementazione (RUE-38)**: loader stretto (campi ed effetti sconosciuti rifiutati con errore che nomina il file); calendario *time-aware* — gli effetti `SetCalendar` sono compilati in **emendamenti datati** (festività / giorno di riposo con tick di decorrenza), così il calendario resta config immutabile e mai stato mutabile, e load/replay lo ricostruiscono identico. Solo `SetCalendar` è cablato end-to-end; gli altri effetti del vocabolario sono **riservati** (rifiutati con messaggio dedicato) finché non arriva l'evento di slice che li richiede. L'hash di scenario (RUE-8) è esteso all'**intero bundle** (config scenario + mappa + definizioni): moddare la timeline cambia l'hash. Pacchetto singolo; l'ordine di caricamento multi-pacchetto è RUE-36. Committato `base:milano-1880` che riproduce **esattamente** il calendario hardcoded (golden invariato).
+**Stato d'implementazione (RUE-38, esteso da RUE-43)**: loader stretto (campi ed effetti sconosciuti rifiutati con errore che nomina il file); calendario *time-aware* — gli effetti `SetCalendar` sono compilati in **emendamenti datati** (festività / giorno di riposo con tick di decorrenza), così il calendario resta config immutabile e mai stato mutabile, e load/replay lo ricostruiscono identico. Solo `SetCalendar` è cablato end-to-end; gli altri effetti del vocabolario sono **riservati** (rifiutati con messaggio dedicato) finché non arriva l'evento di slice che li richiede. `start` ed `economy` sono sezioni **obbligatorie** (RUE-43): chiudono l'ultimo residuo di costanti hardcoded (dotazione iniziale, paga, multe, ritardi di consegna/training, turno) spostandole in dati di scenario, come `EventSettings` già faceva per gli eventi essenziali — stesso trattamento: config non hashata in `SimState`, ma dentro l'hash di scenario. L'hash di scenario (RUE-8) è esteso all'**intero bundle** (config scenario + mappa + definizioni): moddare la timeline, `start` o `economy` cambia l'hash. Pacchetto singolo; l'ordine di caricamento multi-pacchetto è RUE-36. Committato `base:milano-1880` che riproduce **esattamente** il calendario e le costanti hardcoded di partenza (golden e bench invariati).
 
 **Vocabolario chiuso degli effetti** (append-only; si estende quando arriva il contenuto che lo richiede):
 

@@ -56,8 +56,10 @@ public static class ScenarioLoader
         var timeline = BuildTimeline(file.Timeline, sourceName);
         var events = BuildEvents(file.Events, sourceName);
         var end = BuildEnd(file.End, calendar, sourceName);
+        var start = BuildStart(file.Start, sourceName);
+        var economy = BuildEconomy(file.Economy, sourceName);
 
-        return new Scenario(file.Id!, file.Name!, file.Map!, calendar, timeline, events, end);
+        return new Scenario(file.Id!, file.Name!, file.Map!, calendar, timeline, events, end, start, economy);
     }
 
     private static ScenarioFile Parse(string json, string sourceName)
@@ -169,6 +171,29 @@ public static class ScenarioLoader
             dto.TenderDeadlineTicks);
     }
 
+    private static StartSettings BuildStart(StartDto? dto, string sourceName)
+    {
+        Require(dto is not null, sourceName, "start is required");
+        RequireNonNegative(dto!.CashCents, sourceName, "start.cashCents");
+        RequireNonNegative(dto.Workers, sourceName, "start.workers");
+
+        return new StartSettings(dto.CashCents, dto.Workers);
+    }
+
+    private static EconomySettings BuildEconomy(EconomyDto? dto, string sourceName)
+    {
+        Require(dto is not null, sourceName, "economy is required");
+        RequireNonNegative(dto!.DailyWageCents, sourceName, "economy.dailyWageCents");
+        RequireNonNegative(dto.FineCentsPerViolation, sourceName, "economy.fineCentsPerViolation");
+        RequireNonNegative(dto.DeliveryDelayTicks, sourceName, "economy.deliveryDelayTicks");
+        RequireNonNegative(dto.TrainingTicks, sourceName, "economy.trainingTicks");
+        Require(dto.ShiftMinutes > 0, sourceName,
+            Invariant($"economy.shiftMinutes must be > 0 (was {dto.ShiftMinutes})"));
+
+        return new EconomySettings(dto.DailyWageCents, dto.FineCentsPerViolation, dto.DeliveryDelayTicks,
+            dto.TrainingTicks, dto.ShiftMinutes);
+    }
+
     private static (int Year, int Month, int Day)? BuildEnd(EndDto? dto, CalendarSpec calendar, string sourceName)
     {
         if (dto is null)
@@ -224,6 +249,9 @@ public static class ScenarioLoader
     private static void RequireNonNegative(long value, string sourceName, string field) =>
         Require(value >= 0, sourceName, Invariant($"{field} must be >= 0 (was {value})"));
 
+    private static void RequireNonNegative(int value, string sourceName, string field) =>
+        Require(value >= 0, sourceName, Invariant($"{field} must be >= 0 (was {value})"));
+
     private static void Require(bool condition, string sourceName, string message)
     {
         if (!condition)
@@ -252,6 +280,10 @@ public static class ScenarioLoader
         public EventSettingsDto? Events { get; init; }
 
         public EndDto? End { get; init; }
+
+        public StartDto? Start { get; init; }
+
+        public EconomyDto? Economy { get; init; }
     }
 
     private sealed class CalendarDto
@@ -311,6 +343,26 @@ public static class ScenarioLoader
         public required int TenderChanceBps { get; init; }
 
         public required long TenderDeadlineTicks { get; init; }
+    }
+
+    private sealed class StartDto
+    {
+        public required long CashCents { get; init; }
+
+        public required int Workers { get; init; }
+    }
+
+    private sealed class EconomyDto
+    {
+        public required long DailyWageCents { get; init; }
+
+        public required long FineCentsPerViolation { get; init; }
+
+        public required long DeliveryDelayTicks { get; init; }
+
+        public required long TrainingTicks { get; init; }
+
+        public required long ShiftMinutes { get; init; }
     }
 
     private sealed class EndDto

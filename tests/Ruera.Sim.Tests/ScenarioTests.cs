@@ -214,7 +214,7 @@ public class ScenarioTests
         Assert.Equal(1890, sim.Today.Year);            // engine ignored the end; only the hard cap stops it
     }
 
-    private static string ScenarioJson(string timelineEntry, string extra = "")
+    private static string ScenarioJson(string timelineEntry, string extra = "", long dailyWageCents = 300)
     {
         var timeline = string.IsNullOrWhiteSpace(timelineEntry) ? "" : timelineEntry;
         return $$"""
@@ -232,8 +232,83 @@ public class ScenarioTests
               { "month": 12, "day": 25, "name": "Natale" }
             ]
           },
-          "timeline": [{{timeline}}]{{extra}}
+          "timeline": [{{timeline}}],
+          "start": { "cashCents": 500000, "workers": 4 },
+          "economy": {
+            "dailyWageCents": {{dailyWageCents}}, "fineCentsPerViolation": 500, "deliveryDelayTicks": 5,
+            "trainingTicks": 10, "shiftMinutes": 480
+          }{{extra}}
         }
         """;
+    }
+
+    // RUE-43: start/economy moved from Ruera.Sim constants into scenario data.
+
+    [Fact]
+    public void ModdingDailyWage_ChangesScenarioHashAndCashTrajectory()
+    {
+        var plain = ScenarioLoader.Load(ScenarioJson(""));
+        var moddedWage = ScenarioLoader.Load(ScenarioJson("", dailyWageCents: 1000));
+
+        Assert.NotEqual(plain.ContentHash(), moddedWage.ContentHash());
+
+        var graph = ToyGraph();
+        var definitions = SliceDefinitions();
+        var plainSim = Simulation.FromScenario(1UL, plain, graph, definitions);
+        var moddedSim = Simulation.FromScenario(1UL, moddedWage, graph, definitions);
+
+        plainSim.Advance(10); // past the first Saturday payday
+        moddedSim.Advance(10);
+
+        Assert.NotEqual(plainSim.State.CashCents, moddedSim.State.CashCents);
+    }
+
+    [Fact]
+    public void MissingEconomySection_IsRejected()
+    {
+        const string withoutEconomy = """
+            {
+              "formatVersion": 1,
+              "id": "base:milano-1880",
+              "name": "Test scenario",
+              "map": "base:toy",
+              "calendar": {
+                "epochYear": 1880, "epochMonth": 1, "epochDay": 1,
+                "restDays": ["sunday"], "holidays": []
+              },
+              "timeline": [],
+              "start": { "cashCents": 500000, "workers": 4 }
+            }
+            """;
+
+        var exception = Assert.Throws<ScenarioLoadException>(() => ScenarioLoader.Load(withoutEconomy));
+
+        Assert.Contains("economy is required", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void MissingStartSection_IsRejected()
+    {
+        const string withoutStart = """
+            {
+              "formatVersion": 1,
+              "id": "base:milano-1880",
+              "name": "Test scenario",
+              "map": "base:toy",
+              "calendar": {
+                "epochYear": 1880, "epochMonth": 1, "epochDay": 1,
+                "restDays": ["sunday"], "holidays": []
+              },
+              "timeline": [],
+              "economy": {
+                "dailyWageCents": 300, "fineCentsPerViolation": 500, "deliveryDelayTicks": 5,
+                "trainingTicks": 10, "shiftMinutes": 480
+              }
+            }
+            """;
+
+        var exception = Assert.Throws<ScenarioLoadException>(() => ScenarioLoader.Load(withoutStart));
+
+        Assert.Contains("start is required", exception.Message, StringComparison.Ordinal);
     }
 }

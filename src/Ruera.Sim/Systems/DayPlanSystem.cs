@@ -14,9 +14,6 @@ namespace Ruera.Sim.Systems;
 /// </summary>
 internal sealed class DayPlanSystem : ISimSystem
 {
-    /// <summary>Collection shift 2–10 = 480 minutes (DESIGN.md §2). Scenario data eventually.</summary>
-    internal const long ShiftMinutes = 480;
-
     public void Run(SimState state, SimCalendar calendar)
     {
         if (state.Graph is null || !calendar.IsWorkingDay(state.Tick))
@@ -42,7 +39,7 @@ internal sealed class DayPlanSystem : ISimSystem
         var crewAvailable = 0;
         foreach (var worker in state.Workers)
         {
-            if (state.Tick - worker.HiredTick >= EconomySystem.TrainingTicks)
+            if (state.Tick - worker.HiredTick >= state.Economy.TrainingTicks)
                 crewAvailable++;
         }
 
@@ -118,7 +115,7 @@ internal sealed class DayPlanSystem : ISimSystem
             var stopMinutes = stops * (long)definition.FillMinutes;
             var returnHome = IntMath.DivCeil(graph.Distance(exit, depotNode).Value, definition.MetersPerMinute)
                              + definition.EmptyMinutes;
-            if (used + travel + stopMinutes + returnHome > ShiftMinutes)
+            if (used + travel + stopMinutes + returnHome > state.Economy.ShiftMinutes)
                 break; // infeasible: head home, the rest stays unserved
 
             used += travel + stopMinutes;

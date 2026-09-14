@@ -72,7 +72,8 @@ public sealed class Simulation
     private Simulation(ulong seed, ScenarioPackage scenario, StreetGraph graph, DefinitionRegistry definitions,
         Packaging.PackageSetIdentity? packages)
     {
-        State = new SimState(seed, scenario.BuildCalendar(), graph, definitions, scenario.Events, scenario, packages);
+        State = new SimState(seed, scenario.BuildCalendar(), graph, definitions, scenario.Events, scenario, packages,
+            scenario.Start, scenario.Economy);
     }
 
     public ulong Seed => State.Seed;

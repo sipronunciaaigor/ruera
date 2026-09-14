@@ -20,6 +20,17 @@
     ]
   },
   "timeline": [],
+  "start": {
+    "cashCents": 500000,
+    "workers": 4
+  },
+  "economy": {
+    "dailyWageCents": 300,
+    "fineCentsPerViolation": 500,
+    "deliveryDelayTicks": 5,
+    "trainingTicks": 10,
+    "shiftMinutes": 480
+  },
   "events": {
     "breakdownChanceBps": 150,
     "repairTicks": 5,

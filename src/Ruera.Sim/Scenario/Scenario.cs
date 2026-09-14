@@ -20,7 +20,9 @@ public sealed class Scenario
         CalendarSpec calendar,
         IReadOnlyList<TimelineEntry> timeline,
         EventSettings? events,
-        (int Year, int Month, int Day)? end)
+        (int Year, int Month, int Day)? end,
+        StartSettings start,
+        EconomySettings economy)
     {
         Id = id;
         Name = name;
@@ -29,6 +31,8 @@ public sealed class Scenario
         Timeline = timeline;
         Events = events;
         End = end;
+        Start = start;
+        Economy = economy;
     }
 
     /// <summary>Namespaced scenario id, e.g. <c>base:milano-1880</c>.</summary>
@@ -56,6 +60,12 @@ public sealed class Scenario
     /// end is replay/save-stable.
     /// </summary>
     public (int Year, int Month, int Day)? End { get; }
+
+    /// <summary>Starting endowment — cash and trained workers on day zero (RUE-43).</summary>
+    public StartSettings Start { get; }
+
+    /// <summary>Economic cadences — wage, fines, delivery/training delays, shift budget (RUE-43).</summary>
+    public EconomySettings Economy { get; }
 
     /// <summary>
     /// Builds the runnable calendar from <see cref="Calendar"/>, compiling every
@@ -157,5 +167,14 @@ public sealed class Scenario
         {
             hasher.Add(false);
         }
+
+        hasher.Add(Start.CashCents);
+        hasher.Add(Start.Workers);
+
+        hasher.Add(Economy.DailyWageCents);
+        hasher.Add(Economy.FineCentsPerViolation);
+        hasher.Add(Economy.DeliveryDelayTicks);
+        hasher.Add(Economy.TrainingTicks);
+        hasher.Add(Economy.ShiftMinutes);
     }
 }
