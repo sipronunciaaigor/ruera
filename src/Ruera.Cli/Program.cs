@@ -9,6 +9,12 @@ if (args.Length > 0 && args[0] == "bench")
     return;
 }
 
+if (args.Length > 0 && args[0] == "play")
+{
+    Play.Run(args[1..]);
+    return;
+}
+
 var seed = args.Length > 0 ? ulong.Parse(args[0], CultureInfo.InvariantCulture) : 0UL;
 var ticks = args.Length > 1 ? int.Parse(args[1], CultureInfo.InvariantCulture) : 365;
 

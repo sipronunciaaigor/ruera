@@ -37,7 +37,7 @@ public class ProcessingSalesTests
 
         Assert.Equal(24_000 - 6_000, sim.State.StockpileGrams);
         Assert.Equal(0, sim.State.SortedGrams); // sold the same tick it was sorted
-        Assert.Contains(new SimEvent(1, SimEventType.MaterialSold, 0, 12), sim.State.LastTickEvents); // 6000 g @ 2 c/kg = 12 cents
+        Assert.Contains(new SimEvent(1, SimEventType.MaterialSold, 0, 48), sim.State.LastTickEvents); // 6000 g @ 8 c/kg = 48 cents
     }
 
     [Fact]
@@ -65,11 +65,12 @@ public class ProcessingSalesTests
     }
 
     [Fact]
-    public void Sale_PricesExactlyAtTwoCentsPerKilogram()
+    public void Sale_PricesExactlyAtBaseSaleCentsPerKg()
     {
         // Default economy: sortingGramsPerWorkerDay (400 000) easily covers
         // the toy map's daily volumes, so the whole 24 000 g is sorted and
-        // sold the same tick it is collected.
+        // sold the same tick it is collected. base:mixed sells at 8 c/kg
+        // (tuned in RUE-46 so material sales meaningfully move the needle).
         var sim = new Simulation(1, Graph, Definitions);
         sim.Submit(new AddCarrierCommand("base:navazza"));
         sim.Advance(1);
@@ -79,7 +80,7 @@ public class ProcessingSalesTests
 
         Assert.Equal(0, sim.State.StockpileGrams);
         Assert.Equal(0, sim.State.SortedGrams);
-        Assert.Contains(new SimEvent(1, SimEventType.MaterialSold, 0, 48), sim.State.LastTickEvents); // 24 000 g x 2 c/kg / 1000 = 48 cents
+        Assert.Contains(new SimEvent(1, SimEventType.MaterialSold, 0, 192), sim.State.LastTickEvents); // 24 000 g x 8 c/kg / 1000 = 192 cents
     }
 
     [Fact]

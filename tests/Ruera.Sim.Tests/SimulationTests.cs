@@ -1,3 +1,5 @@
+using Ruera.Sim.Commands;
+using Ruera.Sim.Packaging;
 using Ruera.Sim.Rng;
 
 namespace Ruera.Sim.Tests;
@@ -113,5 +115,40 @@ public class SimulationTests
         // no graph, so Processing/Sales never fire), but the byte stream still
         // shifts because a new field entered the canonical writer.
         Assert.Equal(0xd5e6c14cbc0c018eUL, sim.StateHash());
+    }
+
+    [Fact]
+    public void WorldGoldenHash_TwoNavazze_Seed42_365Ticks()
+    {
+        // World-level golden (RUE-46, same discipline as GoldenHash above, but
+        // exercising a full world: graph, day plan, processing/sales, events,
+        // economy). Script matches the "two-navazze" strategy of
+        // Ruera.Cli play (inlined here so this test never depends on the CLI).
+        // From now on, any change that moves this world's trajectory must
+        // update the pinned hash consciously.
+        var packages = ContentLoader.LoadFromDirectory(Path.Combine(AppContext.BaseDirectory, "data", "packages"));
+        var sim = packages.NewSimulation(42UL, "base:milano-1880");
+        var state = sim.State;
+
+        foreach (var producer in state.Producers)
+            sim.Submit(new SignContractCommand(producer.Id));
+        sim.Submit(new BuyCarrierCommand("base:navazza"));
+        sim.Submit(new BuyCarrierCommand("base:navazza"));
+        sim.Advance(6); // purchase deliveries land
+
+        int[] allProducerEdges = [.. state.Producers.Select(p => p.EdgeId).Distinct().OrderBy(e => e)];
+        for (var carrierId = 1; carrierId <= state.Carriers.Count; carrierId++)
+        {
+            var coverage = allProducerEdges.Where((_, i) => i % state.Carriers.Count == carrierId - 1).ToArray();
+            sim.Submit(new SetCoverageCommand(carrierId, coverage));
+        }
+
+        sim.Advance(365); // one full year of play
+
+        // Tuning pass (RUE-46): base:mixed sale price 2 -> 8 c/kg, so the
+        // two-navazze strategy clears the year with more cash than it
+        // started with (verified by Ruera.Cli play, not re-asserted here —
+        // this test's job is only to freeze the resulting trajectory).
+        Assert.Equal(0xa0955b225d4f0b3aUL, sim.StateHash());
     }
 }
