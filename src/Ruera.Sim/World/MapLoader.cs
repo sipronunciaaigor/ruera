@@ -72,20 +72,25 @@ public static class MapLoader
 
         var nodeIds = map.Nodes.Select(n => n.Id).ToList();
         var edgeIds = map.Edges.Select(e => e.Id).ToList();
+        // Membership only, never iterated (DESIGN.md §2 rule 5): HashSet order
+        // is unspecified, but nothing here depends on it — every ordered scan
+        // below still walks the file-order lists above.
+        var nodeIdSet = new HashSet<int>(nodeIds);
+        var edgeIdSet = new HashSet<int>(edgeIds);
         foreach (var edge in map.Edges)
         {
-            Require(nodeIds.Contains(edge.From), Invariant($"edge {edge.Id}: unknown node {edge.From}"));
-            Require(nodeIds.Contains(edge.To), Invariant($"edge {edge.Id}: unknown node {edge.To}"));
+            Require(nodeIdSet.Contains(edge.From), Invariant($"edge {edge.Id}: unknown node {edge.From}"));
+            Require(nodeIdSet.Contains(edge.To), Invariant($"edge {edge.Id}: unknown node {edge.To}"));
             Require(edge.From != edge.To, Invariant($"edge {edge.Id}: from and to are the same node"));
             Require(edge.LengthMeters > 0, Invariant($"edge {edge.Id}: lengthMeters must be > 0 (was {edge.LengthMeters})"));
         }
 
         foreach (var depot in map.Depots)
-            Require(nodeIds.Contains(depot.Node), Invariant($"depot {depot.Id}: unknown node {depot.Node}"));
+            Require(nodeIdSet.Contains(depot.Node), Invariant($"depot {depot.Id}: unknown node {depot.Node}"));
 
         foreach (var producer in map.Producers)
         {
-            Require(edgeIds.Contains(producer.Edge), Invariant($"producer {producer.Id}: unknown edge {producer.Edge}"));
+            Require(edgeIdSet.Contains(producer.Edge), Invariant($"producer {producer.Id}: unknown edge {producer.Edge}"));
             Require(!string.IsNullOrWhiteSpace(producer.Archetype), Invariant($"producer {producer.Id}: archetype must not be empty"));
             if (definitions is not null)
                 Require(definitions.TryGetProducerArchetype(producer.Archetype, out _),
@@ -97,7 +102,7 @@ public static class MapLoader
 
     private static void RequireConnected(MapFile map, List<int> nodeIds)
     {
-        var reached = new List<int> { nodeIds[0] };
+        var reached = new HashSet<int> { nodeIds[0] };
         var frontier = new Queue<int>();
         frontier.Enqueue(nodeIds[0]);
         while (frontier.Count > 0)
@@ -106,11 +111,8 @@ public static class MapLoader
             foreach (var edge in map.Edges) // file order: deterministic
             {
                 var neighbor = edge.From == current ? edge.To : edge.To == current ? edge.From : -1;
-                if (neighbor >= 0 && !reached.Contains(neighbor))
-                {
-                    reached.Add(neighbor);
+                if (neighbor >= 0 && reached.Add(neighbor))
                     frontier.Enqueue(neighbor);
-                }
             }
         }
 
@@ -119,12 +121,9 @@ public static class MapLoader
 
     private static void RequireUniqueIds(IEnumerable<int> ids, string kind)
     {
-        var seen = new List<int>();
+        var seen = new HashSet<int>();
         foreach (var id in ids)
-        {
-            Require(!seen.Contains(id), Invariant($"duplicate {kind} id {id}"));
-            seen.Add(id);
-        }
+            Require(seen.Add(id), Invariant($"duplicate {kind} id {id}"));
     }
 
     private static void Require(bool condition, string message)

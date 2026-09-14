@@ -1,4 +1,3 @@
-using System.Buffers;
 using System.Globalization;
 
 namespace Ruera.Sim.World;
@@ -21,6 +20,7 @@ public sealed class StreetGraph
     private readonly int[] _depotIds;
     private readonly int[] _producerIds;
     private readonly (int Neighbor, long Length)[][] _adjacency; // by node index, sorted (neighbor, length)
+    private readonly long[][] _distanceTable; // [sourceIndex][targetIndex], precomputed once at load (RUE-42)
 
     internal StreetGraph(MapFile map)
     {
@@ -52,6 +52,20 @@ public sealed class StreetGraph
             lists[i].Sort();
             _adjacency[i] = [.. lists[i]];
         }
+
+        // All-pairs shortest paths, once per source node (RUE-42): shortest-path
+        // lengths are unique, so this changes nothing about what Distance
+        // returns — only how fast. Distance(a, b) becomes an O(1) lookup;
+        // ShortestPath (cold path) still runs its own single-source Dijkstra.
+        _distanceTable = new long[_nodes.Length][];
+        var tableDistance = new long[_nodes.Length];
+        var tablePrevious = new int[_nodes.Length];
+        var tableVisited = new bool[_nodes.Length];
+        for (var source = 0; source < _nodes.Length; source++)
+        {
+            RunDijkstra(source, target: null, tableDistance, tablePrevious, tableVisited);
+            _distanceTable[source] = [.. tableDistance];
+        }
     }
 
     public string MapId { get; }
@@ -77,31 +91,16 @@ public sealed class StreetGraph
     public MapProducer Producer(int id) => _producers[Find(_producerIds, id, "producer")];
 
     /// <summary>
-    /// Length of the shortest route between two nodes. This is on the per-tick
-    /// hot path (the day-plan tour, RUE-37): Dijkstra's working buffers are
-    /// rented from the shared array pool, so a steady-state advance allocates
-    /// nothing here. The algorithm — and therefore every distance — is identical.
+    /// Length of the shortest route between two nodes. On the per-tick hot
+    /// path (the day-plan tour): an O(1) lookup into the all-pairs table
+    /// precomputed once at load (RUE-42), superseding the per-call Dijkstra
+    /// this used to run (RUE-37).
     /// </summary>
     public Meters Distance(int fromNodeId, int toNodeId)
     {
         var source = Find(_nodeIds, fromNodeId, "node");
         var target = Find(_nodeIds, toNodeId, "node");
-        var count = _nodes.Length;
-
-        var distance = ArrayPool<long>.Shared.Rent(count);
-        var previous = ArrayPool<int>.Shared.Rent(count);
-        var visited = ArrayPool<bool>.Shared.Rent(count);
-        try
-        {
-            RunDijkstra(source, target, distance, previous, visited);
-            return new Meters(distance[target]);
-        }
-        finally
-        {
-            ArrayPool<long>.Shared.Return(distance);
-            ArrayPool<int>.Shared.Return(previous);
-            ArrayPool<bool>.Shared.Return(visited);
-        }
+        return new Meters(_distanceTable[source][target]);
     }
 
     /// <summary>Node ids of the shortest route, endpoints included. Ties resolve to the lowest node id.</summary>
@@ -125,11 +124,13 @@ public sealed class StreetGraph
     }
 
     /// <summary>
-    /// Deterministic Dijkstra into caller-provided buffers (length >= node count;
-    /// only the first node-count entries are used, so pooled over-sized buffers
-    /// are fine). Linear scan for the min: no heap, no unspecified tie order.
+    /// Deterministic Dijkstra into caller-provided buffers (length >= node
+    /// count). Linear scan for the min: no heap, no unspecified tie order.
+    /// A null <paramref name="target"/> runs to completion (every reachable
+    /// node), used to fill one row of the all-pairs table; a given target
+    /// stops as soon as it is settled, used by the cold-path <see cref="ShortestPath"/>.
     /// </summary>
-    private void RunDijkstra(int source, int target, long[] distance, int[] previous, bool[] visited)
+    private void RunDijkstra(int source, int? target, long[] distance, int[] previous, bool[] visited)
     {
         var count = _nodes.Length;
         Array.Fill(distance, long.MaxValue, 0, count);
@@ -147,8 +148,12 @@ public sealed class StreetGraph
             }
 
             if (current < 0)
-                throw new InvalidOperationException("Target unreachable — validated maps are connected.");
-            if (current == target)
+            {
+                if (target.HasValue)
+                    throw new InvalidOperationException("Target unreachable — validated maps are connected.");
+                return; // full run: every reachable node is settled
+            }
+            if (target.HasValue && current == target.Value)
                 return;
 
             visited[current] = true;
