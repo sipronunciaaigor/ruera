@@ -3,11 +3,8 @@
 ; since the parameters that go here are not all obvious.
 ;
 ; Format:
-;   [section] ; section goes to the same key/value pair as before, in
-;             ; section descriptions
-;   key=value ; property with that key set to that value.
-;
-; General note: this file is written using the UTF-8 encoding format.
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
 
 config_version=5
 
