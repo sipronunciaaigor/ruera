@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -5,6 +6,7 @@ using System.Linq;
 using Godot;
 
 using Ruera.Sim;
+using Ruera.Sim.Calendar;
 using Ruera.Sim.Commands;
 
 namespace Ruera.Renderer;
@@ -16,29 +18,54 @@ namespace Ruera.Renderer;
 /// preview API exposes (RUE-19) — then Apply (exactly one
 /// <c>SetCoverageCommand</c>) or Cancel (revert to the committed coverage).
 /// Never submits a command per click.
+///
+/// RUE-53/B8 adds service lines (DESIGN.md §4, <see cref="RouteTemplate"/>):
+/// save the currently painted selection as a named line, then assign any
+/// carrier to an existing line without repainting — fabri's playtest: "I
+/// can't even assign the carrier to an existing line". A line only feeds a
+/// carrier's tour when that carrier has no direct painted coverage
+/// (DayPlanSystem's override rule), so Apply/direct painting still wins.
+/// Schedule editing (which weekdays a line runs) is out of B8's scope: lines
+/// created here always run every day.
 /// </summary>
 public partial class Painter : Node
 {
+    private static readonly byte AllDaysMask = RouteTemplate.Mask(
+        Weekday.Monday, Weekday.Tuesday, Weekday.Wednesday, Weekday.Thursday, Weekday.Friday, Weekday.Saturday, Weekday.Sunday);
+
     private GameRoot _root = null!;
     private OptionButton _carrierSelect = null!;
     private Label _planLabel = null!;
+    private LineEdit _templateNameInput = null!;
+    private OptionButton _templateSelect = null!;
+    private Label _templateStatusLabel = null!;
 
     private int _selectedCarrierId;
     private readonly HashSet<int> _pending = [];
+    private int[] _templateIds = [];
 
-    public void Setup(GameRoot root, OptionButton carrierSelect, Label planLabel, Button applyButton, Button cancelButton)
+    public void Setup(GameRoot root, OptionButton carrierSelect, Label planLabel, Button applyButton, Button cancelButton,
+        LineEdit templateNameInput, Button createTemplateButton, OptionButton templateSelect, Button assignTemplateButton,
+        Label templateStatusLabel)
     {
         _root = root;
         _carrierSelect = carrierSelect;
         _planLabel = planLabel;
+        _templateNameInput = templateNameInput;
+        _templateSelect = templateSelect;
+        _templateStatusLabel = templateStatusLabel;
 
         _carrierSelect.ItemSelected += _ => SelectCarrier();
         applyButton.Pressed += Apply;
         cancelButton.Pressed += Cancel;
+        createTemplateButton.Pressed += CreateTemplate;
+        assignTemplateButton.Pressed += AssignToTemplate;
 
         root.World!.EdgeClicked += ToggleEdge;
         root.TickResolved += RefreshCarrierList;
+        root.TickResolved += RefreshTemplateList;
         RefreshCarrierList();
+        RefreshTemplateList();
     }
 
     private void RefreshCarrierList()
@@ -136,4 +163,75 @@ public partial class Painter : Node
     }
 
     private void Cancel() => SelectCarrier(); // resets pending back to the carrier's committed coverage
+
+    private void RefreshTemplateList()
+    {
+        var sim = _root.Sim;
+        if (sim is null)
+            return;
+
+        var previouslySelected = _templateSelect.Selected >= 0 && _templateSelect.Selected < _templateIds.Length
+            ? _templateIds[_templateSelect.Selected]
+            : (int?)null;
+
+        _templateSelect.Clear();
+        _templateIds = [.. sim.State.Templates.Select(t => t.Id)];
+        foreach (var template in sim.State.Templates)
+            _templateSelect.AddItem($"{template.Name} (#{template.Id}, {template.AssignedCarriers.Count} mezzi)");
+
+        if (_templateIds.Length == 0)
+            return;
+
+        var index = previouslySelected is { } id ? Array.IndexOf(_templateIds, id) : -1;
+        _templateSelect.Select(index >= 0 ? index : 0);
+    }
+
+    private void CreateTemplate()
+    {
+        var sim = _root.Sim;
+        if (sim is null)
+            return;
+        if (_pending.Count == 0)
+        {
+            _templateStatusLabel.Text = "Dipingi almeno un arco prima di salvare una linea.";
+            return;
+        }
+
+        var name = _templateNameInput.Text.Trim();
+        if (name.Length == 0)
+            name = string.Create(CultureInfo.InvariantCulture, $"Linea {sim.State.Templates.Count + 1}");
+
+        try
+        {
+            sim.Submit(new CreateRouteTemplateCommand(name, [.. _pending.OrderBy(id => id)], AllDaysMask));
+            _templateStatusLabel.Text = string.Create(CultureInfo.InvariantCulture, $"Linea '{name}' creata.");
+            _templateNameInput.Text = "";
+        }
+        catch (ArgumentException ex)
+        {
+            _templateStatusLabel.Text = ex.Message;
+        }
+    }
+
+    private void AssignToTemplate()
+    {
+        var sim = _root.Sim;
+        if (sim is null || _selectedCarrierId == 0 || _templateSelect.Selected < 0 || _templateSelect.Selected >= _templateIds.Length)
+            return;
+
+        var templateId = _templateIds[_templateSelect.Selected];
+        var template = sim.State.Template(templateId);
+        var carrierIds = template.AssignedCarriers.Append(_selectedCarrierId).Distinct().ToArray();
+
+        try
+        {
+            sim.Submit(new SetTemplateCarriersCommand(templateId, carrierIds));
+            _templateStatusLabel.Text = string.Create(CultureInfo.InvariantCulture,
+                $"Mezzo #{_selectedCarrierId} assegnato a '{template.Name}'.");
+        }
+        catch (ArgumentException ex)
+        {
+            _templateStatusLabel.Text = ex.Message;
+        }
+    }
 }

@@ -85,6 +85,7 @@ public partial class Hud : CanvasLayer
         SetupEventLog();
         SetupPainter(root);
         SetupInspector(root);
+        SetupManagement(root);
 
         RefreshSpeed(root.Speed);
         Refresh(root.Sim);
@@ -110,20 +111,32 @@ public partial class Hud : CanvasLayer
         body.AddChild(_eventLog);
     }
 
-    /// <summary>Read-only entity inspector (RUE-19, B5): archetype/buffer/violations for a producer, or type/coverage/last report for a carrier.</summary>
+    /// <summary>
+    /// Read-only entity inspector (RUE-19, B5): archetype/buffer/violations for
+    /// a producer, or type/coverage/last report for a carrier. RUE-53/B8 adds
+    /// the one exception — a "Firma contratto" button when an uncontracted
+    /// producer is selected.
+    /// </summary>
     private void SetupInspector(GameRoot root)
     {
-        AddPanel(new Vector2(460, 200), out var body);
+        AddPanel(new Vector2(760, 12), out var body);
 
         var label = new Label { Name = "InspectorLabel", CustomMinimumSize = new Vector2(260, 0) };
         body.AddChild(label);
 
+        var signContractButton = new Button { Name = "SignContractButton", Text = "Firma contratto" };
+        body.AddChild(signContractButton);
+
         var inspector = new Inspector { Name = "Inspector" };
         AddChild(inspector);
-        inspector.Setup(root, label);
+        inspector.Setup(root, label, signContractButton);
     }
 
-    /// <summary>Coverage painting panel (RUE-30, B4): carrier picker, plan readout, Apply/Cancel.</summary>
+    /// <summary>
+    /// Coverage painting panel (RUE-30, B4): carrier picker, plan readout,
+    /// Apply/Cancel. RUE-53/B8 adds service lines: save the painted selection
+    /// as a named line, and assign any carrier to an existing line.
+    /// </summary>
     private void SetupPainter(GameRoot root)
     {
         AddPanel(new Vector2(460, 12), out var body);
@@ -141,9 +154,50 @@ public partial class Hud : CanvasLayer
         var cancelButton = new Button { Text = "Annulla" };
         buttonRow.AddChild(cancelButton);
 
+        var templateNameInput = new LineEdit { Name = "TemplateNameInput", PlaceholderText = "Nome linea", CustomMinimumSize = new Vector2(200, 0) };
+        body.AddChild(templateNameInput);
+
+        var templateCreateRow = new HBoxContainer { Name = "TemplateCreateRow" };
+        body.AddChild(templateCreateRow);
+        var createTemplateButton = new Button { Text = "Crea linea da selezione" };
+        templateCreateRow.AddChild(createTemplateButton);
+
+        var templateAssignRow = new HBoxContainer { Name = "TemplateAssignRow" };
+        body.AddChild(templateAssignRow);
+        var templateSelect = new OptionButton { Name = "TemplateSelect", CustomMinimumSize = new Vector2(200, 0) };
+        templateAssignRow.AddChild(templateSelect);
+        var assignTemplateButton = new Button { Text = "Assegna mezzo" };
+        templateAssignRow.AddChild(assignTemplateButton);
+
+        var templateStatusLabel = new Label { Name = "TemplateStatusLabel" };
+        body.AddChild(templateStatusLabel);
+
         var painter = new Painter { Name = "Painter" };
         AddChild(painter);
-        painter.Setup(root, carrierSelect, planLabel, applyButton, cancelButton);
+        painter.Setup(root, carrierSelect, planLabel, applyButton, cancelButton,
+            templateNameInput, createTemplateButton, templateSelect, assignTemplateButton, templateStatusLabel);
+    }
+
+    /// <summary>Buy a carrier / hire a worker (RUE-53, B8) — commands that pre-date Phase B but had no UI.</summary>
+    private void SetupManagement(GameRoot root)
+    {
+        AddPanel(new Vector2(760, 260), out var body);
+
+        var carrierTypeSelect = new OptionButton { Name = "CarrierTypeSelect", CustomMinimumSize = new Vector2(220, 0) };
+        body.AddChild(carrierTypeSelect);
+
+        var buyButton = new Button { Text = "Compra mezzo" };
+        body.AddChild(buyButton);
+
+        var hireButton = new Button { Text = "Assumi operaio" };
+        body.AddChild(hireButton);
+
+        var statusLabel = new Label { Name = "ManagementStatusLabel" };
+        body.AddChild(statusLabel);
+
+        var management = new ManagementPanel { Name = "ManagementPanel" };
+        AddChild(management);
+        management.Setup(root, carrierTypeSelect, buyButton, hireButton, statusLabel);
     }
 
     /// <summary>A semi-transparent background panel positioned by a fixed top-left offset, with a VBoxContainer body (B7).</summary>
