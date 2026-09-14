@@ -13,14 +13,20 @@ namespace Ruera.Renderer;
 /// Godot docs). The collision volume is deliberately much larger than the
 /// thin visual mesh (RUE-52/B7) so clicking is forgiving. Left-click raises
 /// <see cref="Clicked"/> for the painter (B4) and still prints the id for
-/// quick debugging.
+/// quick debugging — but only when the mouse barely moved between press and
+/// release (RUE-53): <see cref="CameraRig"/> also pans on left-drag, so a
+/// drag that starts on an edge must not also toggle it.
 /// </summary>
 public partial class EdgeView : Area3D
 {
+    private const float ClickDragTolerancePx = 6f;
+
     private static readonly Color DefaultColor = new(0.55f, 0.55f, 0.55f);
 
     private MeshInstance3D _mesh = null!;
     private StandardMaterial3D _material = null!;
+    private bool _pressedHere;
+    private Vector2 _pressPosition;
 
     public int EdgeId { get; private set; }
 
@@ -51,10 +57,26 @@ public partial class EdgeView : Area3D
 
     private void OnInputEvent(Node camera, InputEvent @event, Vector3 eventPosition, Vector3 normal, long shapeIdx)
     {
-        if (@event is InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: true })
+        switch (@event)
         {
-            GD.Print($"edge {EdgeId}");
-            Clicked?.Invoke(EdgeId);
+            case InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: true }:
+                _pressedHere = true;
+                _pressPosition = GetViewport().GetMousePosition();
+                break;
+
+            case InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: false } when _pressedHere:
+                _pressedHere = false;
+                if (GetViewport().GetMousePosition().DistanceTo(_pressPosition) <= ClickDragTolerancePx)
+                {
+                    GD.Print($"edge {EdgeId}");
+                    Clicked?.Invoke(EdgeId);
+                }
+                break;
+
+            case InputEventMouseMotion when _pressedHere
+                && GetViewport().GetMousePosition().DistanceTo(_pressPosition) > ClickDragTolerancePx:
+                _pressedHere = false; // turned into a camera-pan drag (RUE-53), not a click
+                break;
         }
     }
 }

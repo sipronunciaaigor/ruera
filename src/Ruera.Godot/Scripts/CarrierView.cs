@@ -9,17 +9,23 @@ namespace Ruera.Renderer;
 /// One carrier (RUE-19 B5, RUE-30 B6): a clickable sphere, parked at the
 /// depot and tweened along its route on every <c>TickResolved</c>
 /// (WorldView.PlayCarrierRoutes). Selection = emissive highlight on the Mesh
-/// child.
+/// child. Left-click raises <see cref="Clicked"/> only when the mouse barely
+/// moved between press and release (RUE-53): <see cref="CameraRig"/> also
+/// pans on left-drag, so a drag that starts on a carrier must not also
+/// select it.
 /// </summary>
 public partial class CarrierView : Area3D
 {
     private const float Radius = 6f;
+    private const float ClickDragTolerancePx = 6f;
 
     private static readonly Color BaseColor = new(0.85f, 0.85f, 0.20f);
     private static readonly Color SelectionEmission = new(1.0f, 1.0f, 0.4f);
 
     private StandardMaterial3D _material = null!;
     private Tween? _routeTween;
+    private bool _pressedHere;
+    private Vector2 _pressPosition;
 
     public int CarrierId { get; private set; }
 
@@ -75,7 +81,23 @@ public partial class CarrierView : Area3D
 
     private void OnInputEvent(Node camera, InputEvent @event, Vector3 eventPosition, Vector3 normal, long shapeIdx)
     {
-        if (@event is InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: true })
-            Clicked?.Invoke(CarrierId);
+        switch (@event)
+        {
+            case InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: true }:
+                _pressedHere = true;
+                _pressPosition = GetViewport().GetMousePosition();
+                break;
+
+            case InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: false } when _pressedHere:
+                _pressedHere = false;
+                if (GetViewport().GetMousePosition().DistanceTo(_pressPosition) <= ClickDragTolerancePx)
+                    Clicked?.Invoke(CarrierId);
+                break;
+
+            case InputEventMouseMotion when _pressedHere
+                && GetViewport().GetMousePosition().DistanceTo(_pressPosition) > ClickDragTolerancePx:
+                _pressedHere = false; // turned into a camera-pan drag (RUE-53), not a click
+                break;
+        }
     }
 }

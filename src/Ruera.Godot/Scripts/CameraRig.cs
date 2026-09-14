@@ -5,8 +5,14 @@ namespace Ruera.Renderer;
 /// <summary>
 /// Two orthographic cameras over the same 3D scene (RUE-17 B2, DESIGN.md §5):
 /// an isometric-ish "main" view and a top-down "vista astratta/tattica",
-/// toggled with Tab. Mouse wheel zooms (<see cref="Camera3D.Size"/>),
-/// middle-drag pans the active camera.
+/// toggled with Tab. Mouse wheel zooms (<see cref="Camera3D.Size"/>);
+/// left-drag or middle-drag pans the active camera. Left-drag panning
+/// (RUE-53) lets fabri pull any map area out from under a HUD panel instead
+/// of relying on panel placement to never cover the map — panels can't be
+/// guaranteed clear of a small toy map that fills most of the viewport.
+/// EdgeView/ProducerView/CarrierView independently tell a left-drag apart
+/// from a click (see their own <c>OnInputEvent</c>), so this doesn't fight
+/// with clicking an edge/producer/carrier.
 /// </summary>
 public partial class CameraRig : Node3D
 {
@@ -65,9 +71,9 @@ public partial class CameraRig : Node3D
                 Zoom(ZoomStep);
                 break;
 
-            case InputEventMouseButton { ButtonIndex: MouseButton.Middle } middleButton:
-                _panning = middleButton.Pressed;
-                _lastMousePosition = middleButton.Position;
+            case InputEventMouseButton { ButtonIndex: MouseButton.Left or MouseButton.Middle } panButton:
+                _panning = panButton.Pressed;
+                _lastMousePosition = panButton.Position;
                 break;
 
             case InputEventMouseMotion motion when _panning:
