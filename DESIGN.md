@@ -1,7 +1,7 @@
 # Ruera — Documento di design
 
-> Stato: bozza consolidata delle decisioni di design. Nessun codice ancora scritto.
-> Ultimo aggiornamento: 2026-07-17
+> Stato: motore della slice implementato fino a RUE-40 (vedi Diario di sviluppo); vista Godot in costruzione.
+> Ultimo aggiornamento: 2026-09-14
 
 ## 1. Visione
 
