@@ -438,6 +438,8 @@ La città evolve nei 170 anni (popolazione, quartieri, eventi storici). **Sistem
 - `producers`: riferimento ad arco + `archetype` (id risolto sui dati di RUE-12).
 - Il loader valida: id univoci, riferimenti esistenti, grafo connesso, lunghezze positive.
 
+**Distanze precalcolate** *(RUE-42)*: `StreetGraph` calcola alla costruzione la tabella all-pairs (una Dijkstra per nodo sorgente, distanze uniche quindi invariate) così `Distance` è O(1) sul percorso caldo del piano del giorno; il costo è V²×8 byte di memoria (2 000 nodi ≈ 32 MB), il limite pratico di dimensione mappa per V1.
+
 **Pipeline per la slice Milano 1880–1930: mappa d'autore dalle fonti storiche** (riferimenti in coda al documento), aggregata alle vie principali — il livello produttore-aggregato (§3) non richiede fedeltà al singolo isolato. Si costruisce **dopo** che il motore gira sulla toy map.
 
 **OSM scartato per la slice**: la rete attuale non è la Milano del 1880 (cerchia dei navigli scoperta, corpi santi), e la curatela storica supererebbe il costo dell'authoring a scala aggregata. Il formato resta neutrale: un importer OSM→formato può arrivare per il gioco libero, e il **generatore** («le città storiche sono seed curati», sopra) emetterà lo stesso formato.

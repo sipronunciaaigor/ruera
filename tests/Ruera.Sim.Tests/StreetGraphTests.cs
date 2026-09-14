@@ -104,4 +104,94 @@ public class StreetGraphTests
         var exception = Assert.Throws<MapLoadException>(() => MapLoader.Load(badArchetype, SliceDefinitions));
         Assert.Contains("base:palazzo", exception.Message);
     }
+
+    // RUE-42: Distance() now reads the all-pairs table precomputed at load
+    // instead of running Dijkstra per call. Both tests prove the table is
+    // identical to an independent oracle (ShortestPath's node path, summed
+    // against the edge lengths straight from the loaded map) for every
+    // ordered pair — the precomputation must not change a single distance.
+
+    [Fact]
+    public void DistanceTable_MatchesShortestPath_ForEveryOrderedPair_OnToyMap()
+    {
+        var graph = MapLoader.LoadFromFile(ToyMapPath);
+
+        AssertTableMatchesShortestPathForEveryPair(graph);
+    }
+
+    [Fact]
+    public void DistanceTable_MatchesShortestPath_ForEveryOrderedPair_On10x10GridWithIrregularLengths()
+    {
+        var graph = MapLoader.Load(GenerateGridMapJson(width: 10, height: 10));
+
+        Assert.Equal(100, graph.Nodes.Count);
+        AssertTableMatchesShortestPathForEveryPair(graph);
+    }
+
+    private static void AssertTableMatchesShortestPathForEveryPair(StreetGraph graph)
+    {
+        var edgeLengths = new Dictionary<(int Low, int High), long>();
+        foreach (var edge in graph.Edges)
+            edgeLengths[(Math.Min(edge.From, edge.To), Math.Max(edge.From, edge.To))] = edge.LengthMeters;
+
+        var nodeIds = graph.Nodes.Select(n => n.Id).ToArray();
+        foreach (var from in nodeIds)
+        {
+            foreach (var to in nodeIds)
+            {
+                var expected = 0L;
+                if (from != to)
+                {
+                    var path = graph.ShortestPath(from, to);
+                    for (var i = 0; i < path.Count - 1; i++)
+                        expected += edgeLengths[(Math.Min(path[i], path[i + 1]), Math.Max(path[i], path[i + 1]))];
+                }
+
+                Assert.Equal(expected, graph.Distance(from, to).Value);
+            }
+        }
+    }
+
+    /// <summary>Deterministic W×H grid, irregular (but reproducible) edge lengths, one depot at node 1, no producers.</summary>
+    private static string GenerateGridMapJson(int width, int height)
+    {
+        int NodeId(int x, int y) => (y * width) + x + 1;
+
+        var nodes = new List<string>();
+        for (var y = 0; y < height; y++)
+            for (var x = 0; x < width; x++)
+                nodes.Add(FormattableString.Invariant($$"""{ "id": {{NodeId(x, y)}}, "x": {{x * 100}}, "y": {{y * 100}} }"""));
+
+        var edges = new List<string>();
+        var edgeId = 1;
+        for (var y = 0; y < height; y++)
+        {
+            for (var x = 0; x < width; x++)
+            {
+                if (x + 1 < width)
+                {
+                    var length = 80 + ((x * 7) + (y * 13)) % 41;
+                    edges.Add(FormattableString.Invariant(
+                        $$"""{ "id": {{edgeId++}}, "from": {{NodeId(x, y)}}, "to": {{NodeId(x + 1, y)}}, "lengthMeters": {{length}} }"""));
+                }
+
+                if (y + 1 < height)
+                {
+                    var length = 90 + ((x * 11) + (y * 5)) % 37;
+                    edges.Add(FormattableString.Invariant(
+                        $$"""{ "id": {{edgeId++}}, "from": {{NodeId(x, y)}}, "to": {{NodeId(x, y + 1)}}, "lengthMeters": {{length}} }"""));
+                }
+            }
+        }
+
+        return $$"""
+            {
+              "formatVersion": 1, "id": "base:grid", "name": "Grid",
+              "nodes": [ {{string.Join(", ", nodes)}} ],
+              "edges": [ {{string.Join(", ", edges)}} ],
+              "depots": [ { "id": 1, "node": 1 } ],
+              "producers": []
+            }
+            """;
+    }
 }
