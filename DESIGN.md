@@ -67,6 +67,14 @@ Il giro del camion non è stato simulato nel tempo: è un **piano di fattibilit�
 
 La grafica è la **messa in scena** del piano calcolato, non la simulazione.
 
+### Viaggi multipli nel turno *(implementato — RUE-44)*
+
+Prima di RUE-44 il giro si fermava al primo mezzo pieno, sprecando il resto del budget: una gerla (25 kg) non serviva mai un condominio da 80 kg/giorno. Il piano ora rientra in deposito, scarica e riparte finché il budget lo consente.
+
+**Esecuzione**: il giro continua finché restano archi da coprire. Quando la capacità si esaurisce (`capacityLeft == 0`), si calcola `returnHome` = viaggio verso il deposito dalla posizione corrente + `EmptyMinutes`; se `used + returnHome` rientra nel turno, il mezzo rientra, scarica, la capacità torna piena e riparte dallo stesso deposito (`trips` incrementa); altrimenti il giro finisce per oggi (il rientro finale resta quello di sempre). Il controllo di fattibilità per-arco esistente (`used + viaggio + soste + returnHome > turno → stop`) resta invariato. Un arco resta in `remaining` finché un produttore su di esso ha ancora grammi da raccogliere dopo la visita, così un viaggio successivo (nello stesso giro o in uno futuro) completa il lavoro; la terminazione è garantita perché ogni visita costa almeno un minuto. `DayPlanReport` espone `Trips` (≥ 1 quando il mezzo è uscito dal deposito).
+
+**Anteprima** (pessimista, §4): stessa sequenza greedy, ma ogni produttore porta `max(bufferGrams dell'archetipo, buffer attuale)` — il caso peggiore, mai inferiore al proprio limite dichiarato — e i rientri in deposito si inseriscono esattamente come in esecuzione. L'anteprima non si ferma mai al budget (può superare il 100%, §4): mostra il costo pieno per coprire tutto il dipinto. Per costruzione l'anteprima è quindi sempre ≥ del tempo reale.
+
 ### Risoluzione al tick e cadenze economiche *(deciso 2026-07-17 — RUE-6)*
 
 **Decisione: ogni effetto si materializza al confine del tick. Nella simulazione non esistono checkpoint sub-tick; l'aggregazione (Arcade, §6) avviene sopra i risultati per-tick, mai al posto loro.**

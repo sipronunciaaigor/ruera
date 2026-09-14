@@ -38,6 +38,7 @@ public class DayPlanTests
         // travel ceil(600/90)=7 + 1 stop (12) + return ceil(600/90)=7 + empty 15 = 41
         var report = Assert.Single(sim.State.LastDayReports);
         Assert.Equal(41, report.MinutesUsed);
+        Assert.Equal(1, report.Trips); // single trip: capacity (800 000 g) never runs out (RUE-44)
         Assert.Equal(24_000, report.CollectedGrams); // two days of accumulation
         Assert.Equal([1], report.ServedProducerIds);
         Assert.Equal(24_000, sim.State.StockpileGrams);
@@ -99,18 +100,59 @@ public class DayPlanTests
     }
 
     [Fact]
-    public void CapacityLimits_CausePartialCollection()
+    public void MultiTrip_GerlaDrainsCondoLargeAcrossSevenTrips()
     {
-        var sim = WithCarrier("base:gerla", [5]); // 25 000 g basket vs condo-large
+        // RUE-44: the gerla (25 000 g) no longer stops at one partial visit —
+        // it shuttles back to the depot and out again until either the edge is
+        // drained or the shift budget runs out.
+        //
+        // Depot is node 1; edge 5 (nodes 6-7, 300 m) carries producer 2
+        // (condo-large). Nearest entry to edge 5 from the depot is node 6, at
+        // distance 600 m (e.g. 1-2-6 or 1-5-6, both 300+300); the far end
+        // (node 7, the exit) is 900 m from the depot by the same routes. So
+        // each round trip costs: travel out ceil((600+300)/55)=17, fill 6,
+        // travel back ceil(900/55)=17, unload 4 -> 44 min/trip.
+        //
+        // condo-large accumulated 2 working days' production before this tour
+        // (2 x 80 000 = 160 000 g). The gerla's 25 000 g basket needs
+        // ceil(160 000 / 25 000) = 7 trips (six full loads of 25 000 g plus a
+        // final 10 000 g) to empty it: 7 x 44 = 308 min, well inside the
+        // 480-minute shift.
+        var sim = WithCarrier("base:gerla", [5]);
 
         sim.Advance(1);
 
         var report = Assert.Single(sim.State.LastDayReports);
-        Assert.Equal(44, report.MinutesUsed); // ceil(900/55)=17 out, 6 stop, 17 back, 4 unload
-        Assert.Equal(25_000, report.CollectedGrams);
+        Assert.Equal(308, report.MinutesUsed);
+        Assert.Equal(7, report.Trips);
+        Assert.Equal(160_000, report.CollectedGrams);
         Assert.Equal([2], report.ServedProducerIds);
-        Assert.Equal(135_000, sim.State.Producer(2).BufferGrams); // 160 000 - 25 000
-        Assert.Equal(1, sim.State.Producer(2).LastCollectedTick); // partial still counts as served
+        Assert.Equal(160_000, sim.State.StockpileGrams);
+        Assert.Equal(0, sim.State.Producer(2).BufferGrams); // fully drained, unlike the old single-trip partial pickup
+        Assert.Equal(1, sim.State.Producer(2).LastCollectedTick);
+    }
+
+    [Fact]
+    public void Preview_MultiTrip_UsesArchetypeCapAsPessimisticBufferAndExceedsBudget()
+    {
+        // RUE-44 preview rule: each producer is assumed to carry
+        // max(archetype buffer, current buffer) — here the condo-large's
+        // 300 000 g cap, worse than the ~80-160 000 g actually on the ground.
+        // 300 000 / 25 000 = exactly 12 trips of the gerla's basket, each
+        // 44 min (see MultiTrip_GerlaDrainsCondoLargeAcrossSevenTrips for the
+        // per-trip arithmetic) = 528 min — over the 480-minute shift, which a
+        // pessimistic preview is allowed to show (DESIGN.md §4: routes can
+        // read past 100% of budget).
+        var sim = WithCarrier("base:gerla", [5]);
+
+        var preview = sim.PreviewTour(1, [5]);
+        Assert.Equal(528, preview.Value);
+        Assert.True(preview.Value > 480);
+
+        sim.Advance(1);
+
+        var report = Assert.Single(sim.State.LastDayReports);
+        Assert.True(preview.Value > report.MinutesUsed); // preview is always >= reality
     }
 
     [Fact]

@@ -37,5 +37,10 @@ public sealed class CarrierState
     }
 }
 
-/// <summary>What one carrier did in the last resolved day (inspectability, DESIGN.md §2).</summary>
-public sealed record DayPlanReport(int CarrierId, long MinutesUsed, long CollectedGrams, IReadOnlyList<int> ServedProducerIds);
+/// <summary>
+/// What one carrier did in the last resolved day (inspectability, DESIGN.md §2).
+/// <paramref name="Trips"/> is the number of depot departures (RUE-44 multi-trip:
+/// ≥ 1 whenever the carrier left the depot). Not part of canonical state — a
+/// transient per-tick report, cleared every <see cref="SimState.BeginTick"/>.
+/// </summary>
+public sealed record DayPlanReport(int CarrierId, long MinutesUsed, long CollectedGrams, IReadOnlyList<int> ServedProducerIds, int Trips);
