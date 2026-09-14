@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/Ruera.Cli/Ruera.Cli.csproj" />
+    <Project Path="src/Ruera.Godot/Ruera.Godot.csproj" />
     <Project Path="src/Ruera.Sim/Ruera.Sim.csproj" />
   </Folder>
   <Folder Name="/tests/">

@@ -1,0 +1,18 @@
+<Project Sdk="Godot.NET.Sdk/4.7.0">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <Nullable>enable</Nullable>
+    <!-- Godot's source generators can emit warnings the root Directory.Build.props
+         would escalate to errors; this project opts out, everything else keeps it. -->
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Renderer only: consumes the sim's net9 build, never the other way
+         around (DESIGN.md §5/§6, CLAUDE.md). -->
+    <ProjectReference Include="..\Ruera.Sim\Ruera.Sim.csproj" />
+  </ItemGroup>
+
+</Project>
