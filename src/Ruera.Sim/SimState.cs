@@ -37,8 +37,19 @@ public sealed class SimState
     /// <summary>Elapsed ticks since the start of the game. One tick = one in-game day.</summary>
     public long Tick { get; internal set; }
 
-    /// <summary>Collected waste sitting at the depot, awaiting processing (RUE-14/16 successors).</summary>
+    /// <summary>Collected waste sitting at the depot, awaiting processing (RUE-45 <see cref="Systems.ProcessingSystem"/>).</summary>
     public long StockpileGrams { get; internal set; }
+
+    /// <summary>Sorted waste awaiting sale (RUE-45): moved here from <see cref="StockpileGrams"/> by processing, sold to zero the same tick.</summary>
+    public long SortedGrams { get; internal set; }
+
+    /// <summary>
+    /// Crew consumed today by carriers the day plan dispatched (RUE-45):
+    /// written by <see cref="Systems.DayPlanSystem"/>, read by
+    /// <see cref="Systems.ProcessingSystem"/> to size idle sorting capacity.
+    /// Transient — cleared every <see cref="BeginTick"/>, never hashed.
+    /// </summary>
+    internal int CrewUsedToday { get; set; }
 
     /// <summary>Company cash. All accounting is integer cents (DESIGN.md §2).</summary>
     public long CashCents { get; internal set; }
@@ -294,6 +305,7 @@ public sealed class SimState
         _events.Clear();
         _reports.Clear();
         _lineReports.Clear();
+        CrewUsedToday = 0;
     }
 
     internal void Emit(SimEvent simEvent) => _events.Add(simEvent);
@@ -311,8 +323,9 @@ public sealed class SimState
     }
 
     /// <summary>
-    /// THE canonical state serialization, format v3 (RUE-14): the single field
-    /// order feeding both the state hash and snapshot bytes (RUE-8 «writer
+    /// THE canonical state serialization, format v6 (RUE-45; v3 introduced with
+    /// RUE-14): the single field order feeding both the state hash and
+    /// snapshot bytes (RUE-8 «writer
     /// unico»). <see cref="ReadFrom"/> must mirror it exactly.
     /// </summary>
     internal void WriteTo(IStateWriter writer)
@@ -323,6 +336,7 @@ public sealed class SimState
             stream.WriteState(writer);
 
         writer.Add(StockpileGrams);
+        writer.Add(SortedGrams);
         writer.Add(NextCarrierId);
         writer.Add(_carriers.Count);
         foreach (var carrier in _carriers) // id order
@@ -390,6 +404,7 @@ public sealed class SimState
             stream.SetState(reader.ReadUInt64(), reader.ReadUInt64(), reader.ReadUInt64(), reader.ReadUInt64());
 
         StockpileGrams = reader.ReadInt64();
+        SortedGrams = reader.ReadInt64();
         NextCarrierId = reader.ReadInt32();
         _carriers.Clear();
         var carrierCount = reader.ReadInt32();

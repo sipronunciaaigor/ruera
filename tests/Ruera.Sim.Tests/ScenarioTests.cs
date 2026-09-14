@@ -236,7 +236,8 @@ public class ScenarioTests
           "start": { "cashCents": 500000, "workers": 4 },
           "economy": {
             "dailyWageCents": {{dailyWageCents}}, "fineCentsPerViolation": 500, "deliveryDelayTicks": 5,
-            "trainingTicks": 10, "shiftMinutes": 480
+            "trainingTicks": 10, "shiftMinutes": 480, "sortingGramsPerWorkerDay": 400000,
+            "stockpileWaste": "base:mixed"
           }{{extra}}
         }
         """;
@@ -302,7 +303,8 @@ public class ScenarioTests
               "timeline": [],
               "economy": {
                 "dailyWageCents": 300, "fineCentsPerViolation": 500, "deliveryDelayTicks": 5,
-                "trainingTicks": 10, "shiftMinutes": 480
+                "trainingTicks": 10, "shiftMinutes": 480, "sortingGramsPerWorkerDay": 400000,
+                "stockpileWaste": "base:mixed"
               }
             }
             """;

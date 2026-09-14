@@ -19,6 +19,9 @@ public enum SimEventType
 
     /// <summary>Public tender announced for the producer in EntityId; Data is the deadline tick (RUE-32).</summary>
     TenderAnnounced = 6,
+
+    /// <summary>Sorted stockpile sold; Data carries the sale amount in cents (RUE-45). EntityId is 0 (company-wide, not per-producer).</summary>
+    MaterialSold = 7,
 }
 
 /// <summary>

@@ -373,7 +373,7 @@ Timeline di riferimento (basata su Milano; le altre città usano più o meno gli
 
 ### Ricavi
 - **Appalti condominiali** (fonte principale nei primi periodi).
-- **Vendita di materiale** smistato/differenziato — il prezzo dipende dalla **purezza** del materiale ottenuto.
+- **Vendita di materiale** smistato/differenziato — il prezzo dipende dalla **purezza** del materiale ottenuto. *Implementato per la slice (RUE-45)*: un solo flusso indistinto (`stockpileWaste` di scenario, base `base:mixed`); ogni operaio formato non impegnato come equipaggio dei mezzi (`economy.sortingGramsPerWorkerDay`, base 400 000 g/giorno) smista dal mucchio in azienda (step 5 del tick) e la vendita è immediata al prezzo base del rifiuto (step 6). Il magazzino per singola frazione (niente più mucchio unico) arriva con la differenziata 1980.
 - **Bandi pubblici** (rinnovo soggetto a indice di efficienza).
 - **Endgame — integrazione verticale**: comprare aziende produttrici (es. una fabbrica di moka) e chiudere il ciclo dei materiali — riciclare l'alluminio nella propria fabbrica e guadagnare anche dalla vendita delle caffettiere. Catene di produzione alla Anno. È la dimostrazione giocabile della tesi del gioco.
 

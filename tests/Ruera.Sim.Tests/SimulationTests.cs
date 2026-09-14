@@ -107,9 +107,11 @@ public class SimulationTests
         var sim = new Simulation(42);
         sim.Advance(365);
 
-        // Updated 2026-07-18 (RUE-31): state format v4 adds route templates to
-        // the hash — a conscious SimVersion bump, like v2 (RUE-16) and v3
-        // (RUE-14) before it.
-        Assert.Equal(0xaf6f3cb46941e76eUL, sim.StateHash());
+        // Updated 2026-09-14 (RUE-45): state format v6 adds SortedGrams to the
+        // hash — a conscious SimVersion bump, like v4 (RUE-31) and v5 (RUE-32)
+        // before it. The worldless run never touches SortedGrams (it stays 0:
+        // no graph, so Processing/Sales never fire), but the byte stream still
+        // shifts because a new field entered the canonical writer.
+        Assert.Equal(0xd5e6c14cbc0c018eUL, sim.StateHash());
     }
 }

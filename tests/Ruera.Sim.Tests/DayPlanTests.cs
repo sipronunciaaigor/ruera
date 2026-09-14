@@ -41,7 +41,7 @@ public class DayPlanTests
         Assert.Equal(1, report.Trips); // single trip: capacity (800 000 g) never runs out (RUE-44)
         Assert.Equal(24_000, report.CollectedGrams); // two days of accumulation
         Assert.Equal([1], report.ServedProducerIds);
-        Assert.Equal(24_000, sim.State.StockpileGrams);
+        Assert.Equal(0, sim.State.StockpileGrams); // sorted and sold the same tick (RUE-45): idle crew capacity dwarfs 24 000 g
         Assert.Equal(0, sim.State.Producer(1).BufferGrams);
         Assert.Equal(1, sim.State.Producer(1).LastCollectedTick);
     }
@@ -93,7 +93,7 @@ public class DayPlanTests
 
         sim.Advance(3); // Fri (collect), Sat (collect), Sun (rest)
 
-        Assert.Equal(36_000, sim.State.StockpileGrams);
+        Assert.Equal(0, sim.State.StockpileGrams); // each working day's collection is sorted and sold same-tick (RUE-45)
         Assert.Equal(12_000, sim.State.Producer(1).BufferGrams); // Sunday's production waits
         Assert.Equal(2, sim.State.Producer(1).LastCollectedTick); // Saturday
         Assert.Empty(sim.State.LastDayReports); // no tours on rest days
@@ -127,7 +127,7 @@ public class DayPlanTests
         Assert.Equal(7, report.Trips);
         Assert.Equal(160_000, report.CollectedGrams);
         Assert.Equal([2], report.ServedProducerIds);
-        Assert.Equal(160_000, sim.State.StockpileGrams);
+        Assert.Equal(0, sim.State.StockpileGrams); // sorted and sold the same tick (RUE-45)
         Assert.Equal(0, sim.State.Producer(2).BufferGrams); // fully drained, unlike the old single-trip partial pickup
         Assert.Equal(1, sim.State.Producer(2).LastCollectedTick);
     }

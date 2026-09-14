@@ -31,7 +31,11 @@ internal static class Bench
         var (mapJson, edgeCount, producerCount) = BuildMap(gridW, gridH);
         var graph = MapLoader.Load(mapJson, definitions);
 
-        var sim = new Simulation(1UL, graph, definitions);
+        // EconomySettings.Default points at "base:mixed" (the real base package's
+        // waste id), which this synthetic registry doesn't declare — give the
+        // bench its own economy naming "bench:mixed" instead (RUE-45).
+        var economy = EconomySettings.Default with { StockpileWaste = "bench:mixed" };
+        var sim = new Simulation(1UL, graph, definitions, economy: economy);
 
         // Fleet + crew: one worker per carrier (crew gating needs trained crew).
         for (var i = 0; i < carriers; i++)

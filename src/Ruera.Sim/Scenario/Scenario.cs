@@ -176,5 +176,7 @@ public sealed class Scenario
         hasher.Add(Economy.DeliveryDelayTicks);
         hasher.Add(Economy.TrainingTicks);
         hasher.Add(Economy.ShiftMinutes);
+        hasher.Add(Economy.SortingGramsPerWorkerDay);
+        hasher.Add(Economy.StockpileWaste);
     }
 }

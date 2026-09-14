@@ -122,6 +122,9 @@ public static class ContentLoader
                 if (!maps.ContainsKey(scenario.MapRef))
                     throw new PackageLoadException(Invariant(
                         $"scenario '{scenario.Id}' references map '{scenario.MapRef}', which no loaded package provides."));
+                if (!definitions.TryGetWaste(scenario.Economy.StockpileWaste, out _))
+                    throw new PackageLoadException(Invariant(
+                        $"scenario '{scenario.Id}' references stockpileWaste '{scenario.Economy.StockpileWaste}', which no loaded package provides."));
                 scenarios[scenario.Id] = scenario;
             }
         }

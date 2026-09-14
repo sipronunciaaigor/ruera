@@ -17,13 +17,15 @@ namespace Ruera.Sim;
 public sealed class Simulation
 {
     // The fixed in-tick system order (DESIGN.md §2 «Risoluzione al tick», RUE-6):
-    // waste production -> day plan -> closing checks. Calendar/events, processing
-    // and sales slot into this array as they land. Plain array, run in order.
+    // events -> waste production -> day plan -> processing -> sales -> closing
+    // checks. Plain array, run in order.
     private static readonly ISimSystem[] SystemPipeline =
     [
         new EventsSystem(),
         new WasteProductionSystem(),
         new DayPlanSystem(),
+        new ProcessingSystem(),
+        new SalesSystem(),
         new ViolationSystem(),
         new EconomySystem(),
     ];
@@ -45,15 +47,16 @@ public sealed class Simulation
     }
 
     /// <summary>Engine over a loaded world (map + entity definitions), default calendar.</summary>
-    public Simulation(ulong seed, StreetGraph graph, DefinitionRegistry definitions, EventSettings? events = null)
-        : this(seed, SimCalendar.Milano1880(), graph, definitions, events)
+    public Simulation(ulong seed, StreetGraph graph, DefinitionRegistry definitions, EventSettings? events = null,
+        EconomySettings? economy = null)
+        : this(seed, SimCalendar.Milano1880(), graph, definitions, events, economy)
     {
     }
 
     public Simulation(ulong seed, SimCalendar calendar, StreetGraph? graph, DefinitionRegistry? definitions,
-        EventSettings? events = null)
+        EventSettings? events = null, EconomySettings? economy = null)
     {
-        State = new SimState(seed, calendar, graph, definitions, events);
+        State = new SimState(seed, calendar, graph, definitions, events, economy: economy);
     }
 
     /// <summary>

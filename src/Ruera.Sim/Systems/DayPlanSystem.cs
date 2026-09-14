@@ -73,6 +73,7 @@ internal sealed class DayPlanSystem : ISimSystem
             if (coverage.Length == 0 || carrier.Definition.Crew > crewAvailable)
                 continue;
             crewAvailable -= carrier.Definition.Crew;
+            state.CrewUsedToday += carrier.Definition.Crew; // read by ProcessingSystem (RUE-45)
             foreach (var lineIndex in attributed)
                 lineDispatched[lineIndex]++;
             ExecuteTour(state, carrier, coverage, activeLines, attributed, lineCollected, lineServed);

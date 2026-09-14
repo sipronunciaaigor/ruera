@@ -29,7 +29,9 @@
     "fineCentsPerViolation": 500,
     "deliveryDelayTicks": 5,
     "trainingTicks": 10,
-    "shiftMinutes": 480
+    "shiftMinutes": 480,
+    "sortingGramsPerWorkerDay": 400000,
+    "stockpileWaste": "base:mixed"
   },
   "events": {
     "breakdownChanceBps": 150,

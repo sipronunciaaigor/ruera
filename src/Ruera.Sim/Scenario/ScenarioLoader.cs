@@ -189,9 +189,11 @@ public static class ScenarioLoader
         RequireNonNegative(dto.TrainingTicks, sourceName, "economy.trainingTicks");
         Require(dto.ShiftMinutes > 0, sourceName,
             Invariant($"economy.shiftMinutes must be > 0 (was {dto.ShiftMinutes})"));
+        RequireNonNegative(dto.SortingGramsPerWorkerDay, sourceName, "economy.sortingGramsPerWorkerDay");
+        Require(!string.IsNullOrWhiteSpace(dto.StockpileWaste), sourceName, "economy.stockpileWaste must not be empty");
 
         return new EconomySettings(dto.DailyWageCents, dto.FineCentsPerViolation, dto.DeliveryDelayTicks,
-            dto.TrainingTicks, dto.ShiftMinutes);
+            dto.TrainingTicks, dto.ShiftMinutes, dto.SortingGramsPerWorkerDay, dto.StockpileWaste!);
     }
 
     private static (int Year, int Month, int Day)? BuildEnd(EndDto? dto, CalendarSpec calendar, string sourceName)
@@ -363,6 +365,10 @@ public static class ScenarioLoader
         public required long TrainingTicks { get; init; }
 
         public required long ShiftMinutes { get; init; }
+
+        public required long SortingGramsPerWorkerDay { get; init; }
+
+        public string? StockpileWaste { get; init; }
     }
 
     private sealed class EndDto
