@@ -10,14 +10,10 @@ namespace Ruera.Renderer;
 /// midpoint, one colour per archetype, Y scale = clamp(buffer / bufferMax,
 /// 0.05, 3), red tint when over the buffer. Selection = emissive highlight
 /// on the Mesh child (B5). Pure staging: never mutates <c>Sim.State</c>.
-/// Left-click raises <see cref="Clicked"/> only when the mouse barely moved
-/// between press and release (RUE-53): <see cref="CameraRig"/> also pans on
-/// left-drag, so a drag that starts on a producer must not also select it.
 /// </summary>
 public partial class ProducerView : Area3D
 {
     private const float BoxSize = 20f;
-    private const float ClickDragTolerancePx = 6f;
 
     private static readonly Dictionary<string, Color> ArchetypeColors = new()
     {
@@ -33,8 +29,6 @@ public partial class ProducerView : Area3D
     private MeshInstance3D _mesh = null!;
     private StandardMaterial3D _material = null!;
     private Color _baseColor;
-    private bool _pressedHere;
-    private Vector2 _pressPosition;
 
     public int ProducerId { get; private set; }
 
@@ -87,23 +81,7 @@ public partial class ProducerView : Area3D
 
     private void OnInputEvent(Node camera, InputEvent @event, Vector3 eventPosition, Vector3 normal, long shapeIdx)
     {
-        switch (@event)
-        {
-            case InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: true }:
-                _pressedHere = true;
-                _pressPosition = GetViewport().GetMousePosition();
-                break;
-
-            case InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: false } when _pressedHere:
-                _pressedHere = false;
-                if (GetViewport().GetMousePosition().DistanceTo(_pressPosition) <= ClickDragTolerancePx)
-                    Clicked?.Invoke(ProducerId);
-                break;
-
-            case InputEventMouseMotion when _pressedHere
-                && GetViewport().GetMousePosition().DistanceTo(_pressPosition) > ClickDragTolerancePx:
-                _pressedHere = false; // turned into a camera-pan drag (RUE-53), not a click
-                break;
-        }
+        if (@event is InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: true })
+            Clicked?.Invoke(ProducerId);
     }
 }
