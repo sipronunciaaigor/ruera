@@ -7,11 +7,13 @@ using Ruera.Sim.World;
 namespace Ruera.Renderer;
 
 /// <summary>
-/// One street edge (RUE-17, B2/B4): a clickable box straddling the street,
-/// midpoint-positioned then oriented towards the far node once it is in the
-/// scene tree (<see cref="Node3D.LookAt"/> requires that, per Godot docs).
-/// Left-click raises <see cref="Clicked"/> for the painter (B4) and still
-/// prints the id for quick debugging.
+/// One street edge (RUE-17, B2/B4/B7): a clickable box straddling the
+/// street, midpoint-positioned then oriented towards the far node once it
+/// is in the scene tree (<see cref="Node3D.LookAt"/> requires that, per
+/// Godot docs). The collision volume is deliberately much larger than the
+/// thin visual mesh (RUE-52/B7) so clicking is forgiving. Left-click raises
+/// <see cref="Clicked"/> for the painter (B4) and still prints the id for
+/// quick debugging.
 /// </summary>
 public partial class EdgeView : Area3D
 {
@@ -30,11 +32,16 @@ public partial class EdgeView : Area3D
         Position = (fromPosition + toPosition) / 2f;
         InputRayPickable = true;
 
-        var size = new Vector3(8f, 1f, (float)edge.LengthMeters);
+        var visualSize = new Vector3(8f, 1f, (float)edge.LengthMeters);
         _material = new StandardMaterial3D { AlbedoColor = DefaultColor };
-        _mesh = new MeshInstance3D { Name = "Mesh", Mesh = new BoxMesh { Size = size }, MaterialOverride = _material };
+        _mesh = new MeshInstance3D { Name = "Mesh", Mesh = new BoxMesh { Size = visualSize }, MaterialOverride = _material };
         AddChild(_mesh);
-        AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = size } });
+
+        // Clickable volume much wider/taller than the thin visual box (fabri's
+        // playtest: painting required a very precise click) -- same length,
+        // so it still tracks the street rather than overlapping neighbours.
+        var collisionSize = new Vector3(24f, 16f, (float)edge.LengthMeters);
+        AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = collisionSize } });
 
         InputEvent += OnInputEvent;
     }
