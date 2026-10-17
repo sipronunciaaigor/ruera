@@ -4,7 +4,7 @@
 
 - **Design tecnico e di gioco**: `DESIGN.md` in questo repo — autoritativo.
 - **Prodotto** (roadmap, log decisioni, diario): hub Notion «Ruera — Hub» — https://app.notion.com/p/3a005d5d7f7281569708dbee1ec41a81
-- **Lavoro eseguibile**: Linear, team «Ruera».
+- **Lavoro eseguibile**: Linear, workspace `fabthefab`, team «Ruera» (chiave `RUE`) — https://linear.app/fabthefab/team/RUE/overview (id team `66656b99-8ba3-4df6-8492-10432719c4d3`). Il vecchio workspace non è più in uso: gli ID `RUE-n` restano validi qui.
 - **Contesto operativo per Claude**: pagina Notion «Claude's context» (sottopagina dell'hub).
 
 ## Quando leggere le fonti
